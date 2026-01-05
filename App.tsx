@@ -2,7 +2,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { 
   Plus, LayoutDashboard, HardHat, 
-  Bell, Users, Cloud, CloudCheck, Loader2, RefreshCw, Database, Settings, X, Save, Link as LinkIcon, AlertCircle, ShieldCheck
+  Bell, Users, Cloud, CloudCheck, Loader2, RefreshCw, Database, Settings, X, Save, 
+  Link as LinkIcon, AlertCircle, ShieldCheck, Copy, Info, CheckCircle2, Terminal
 } from 'lucide-react';
 import { Project, Employee } from './types';
 import Dashboard from './components/Dashboard';
@@ -11,35 +12,86 @@ import NewProjectModal from './components/NewProjectModal';
 import EmployeeManagement from './components/EmployeeManagement';
 import { DatabaseService } from './services/databaseService';
 
-// Main App component for HLH Engenharia
+const SQL_INSTRUCTIONS = `
+-- COPIE E COLE ISSO NO "SQL EDITOR" DO SUPABASE:
+
+CREATE TABLE IF NOT EXISTS projects (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  status TEXT,
+  location TEXT,
+  progress INTEGER,
+  "mainPhoto" TEXT,
+  employees JSONB DEFAULT '[]',
+  reports JSONB DEFAULT '[]',
+  purchases JSONB DEFAULT '[]',
+  photos JSONB DEFAULT '[]',
+  presence JSONB DEFAULT '[]',
+  contracts JSONB DEFAULT '[]',
+  documents JSONB DEFAULT '[]'
+);
+
+CREATE TABLE IF NOT EXISTS employees (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  role TEXT,
+  active BOOLEAN DEFAULT true,
+  "dailyRate" NUMERIC,
+  "projectId" TEXT
+);
+
+-- Habilitar acesso público (apenas para teste inicial)
+ALTER TABLE projects ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Public Access" ON projects FOR ALL USING (true) WITH CHECK (true);
+ALTER TABLE employees ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Public Access" ON employees FOR ALL USING (true) WITH CHECK (true);
+`;
+
 const App: React.FC = () => {
   const [projects, setProjects] = useState<Project[]>([]);
   const [globalEmployees, setGlobalEmployees] = useState<Employee[]>([]);
   const [currentView, setCurrentView] = useState<'dashboard' | 'employees' | 'project'>('dashboard');
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
+  const selectedProject = projects.find(p => p.id === selectedProjectId);
   const [isNewProjectModalOpen, setIsNewProjectModalOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isSyncing, setIsSyncing] = useState(false);
-  const [syncError, setSyncError] = useState(false);
+  const [syncError, setSyncError] = useState<string | null>(null);
   
-  // Config States
   const [dbUrl, setDbUrl] = useState('');
   const [dbKey, setDbKey] = useState('');
+  const [dbStatus, setDbStatus] = useState<{success?: boolean, message?: string, code?: string}>({});
 
   const loadInitialData = useCallback(async () => {
     setIsLoading(true);
-    setSyncError(false);
+    setSyncError(null);
     try {
+      if (DatabaseService.isConfigured()) {
+        const test = await DatabaseService.testConnection();
+        setDbStatus(test);
+        if (!test.success) {
+          setSyncError(test.message);
+          const [lp, le] = await Promise.all([
+            localStorage.getItem('hlh_projects_cloud_v1') ? JSON.parse(localStorage.getItem('hlh_projects_cloud_v1')!) : [],
+            localStorage.getItem('hlh_employees_cloud_v1') ? JSON.parse(localStorage.getItem('hlh_employees_cloud_v1')!) : []
+          ]);
+          setProjects(lp);
+          setGlobalEmployees(le);
+          setIsLoading(false);
+          return;
+        }
+      }
+
       const [loadedProjects, loadedEmployees] = await Promise.all([
         DatabaseService.getProjects(),
         DatabaseService.getEmployees()
       ]);
       setProjects(loadedProjects);
       setGlobalEmployees(loadedEmployees);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Erro ao carregar dados:", error);
-      setSyncError(true);
+      setSyncError(error.message || "Erro de conexão");
     } finally {
       setIsLoading(false);
     }
@@ -47,7 +99,6 @@ const App: React.FC = () => {
 
   useEffect(() => {
     loadInitialData();
-    // Preencher campos se já houver config
     const config = localStorage.getItem('hlh_supabase_config');
     if (config) {
       const parsed = JSON.parse(config);
@@ -57,7 +108,7 @@ const App: React.FC = () => {
   }, [loadInitialData]);
 
   useEffect(() => {
-    if (isLoading) return;
+    if (isLoading || !DatabaseService.isConfigured() || dbStatus.code === 'MISSING_TABLES') return;
     
     const syncData = async () => {
       setIsSyncing(true);
@@ -66,27 +117,31 @@ const App: React.FC = () => {
           DatabaseService.saveProjects(projects),
           DatabaseService.saveEmployees(globalEmployees)
         ]);
-        setSyncError(false);
-      } catch (error) {
-        console.error("Erro na sincronização:", error);
-        setSyncError(true);
+        setSyncError(null);
+      } catch (error: any) {
+        setSyncError(error.message);
       } finally {
         setTimeout(() => setIsSyncing(false), 500);
       }
     };
 
-    const timer = setTimeout(syncData, 1500);
+    const timer = setTimeout(syncData, 2000);
     return () => clearTimeout(timer);
-  }, [projects, globalEmployees, isLoading]);
+  }, [projects, globalEmployees, isLoading, dbStatus.code]);
 
-  const handleSaveConfig = () => {
-    if (dbUrl && !dbUrl.startsWith('http')) {
-      alert('Por favor, insira uma URL válida do Supabase (começando com https://)');
-      return;
-    }
+  const handleSaveConfig = async () => {
     DatabaseService.saveConfig(dbUrl, dbKey);
-    setIsSettingsOpen(false);
-    loadInitialData();
+    const test = await DatabaseService.testConnection();
+    setDbStatus(test);
+    if (test.success) {
+      setIsSettingsOpen(false);
+      loadInitialData();
+    }
+  };
+
+  const copySQL = () => {
+    navigator.clipboard.writeText(SQL_INSTRUCTIONS);
+    alert("Código SQL copiado! Cole no SQL Editor do Supabase.");
   };
 
   const addProject = (name: string, location: string) => {
@@ -114,217 +169,247 @@ const App: React.FC = () => {
   };
 
   const deleteProject = (id: string) => {
-    const projectToDelete = projects.find(p => p.id === id);
-    if (window.confirm(`EXCLUIR OBRA "${projectToDelete?.name}"?`)) {
+    if (window.confirm(`EXCLUIR OBRA?`)) {
       setProjects(prev => prev.filter(p => p.id !== id));
-      if (selectedProjectId === id) {
-        setCurrentView('dashboard');
-        setSelectedProjectId(null);
-      }
     }
   };
 
-  const handleSelectProject = (id: string) => {
-    setSelectedProjectId(id);
-    setCurrentView('project');
-  };
-
-  const selectedProject = projects.find(p => p.id === selectedProjectId);
-
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-slate-100 flex flex-col items-center justify-center gap-4">
-        <div className="bg-amber-500 p-4 rounded-3xl shadow-2xl animate-bounce">
-          <HardHat size={48} className="text-slate-900" />
+      <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center gap-6">
+        <div className="bg-amber-500 p-6 rounded-[2rem] shadow-2xl animate-bounce">
+          <HardHat size={64} className="text-slate-900" />
         </div>
-        <div className="text-center">
-          <h2 className="text-xl font-black text-slate-900 uppercase tracking-tighter">HLH Engenharia</h2>
-          <div className="flex items-center justify-center gap-2 text-slate-400 font-black text-[10px] uppercase tracking-widest mt-2">
-            <Loader2 size={14} className="animate-spin text-amber-500" />
-            Conectando...
+        <div className="text-center space-y-2">
+          <h2 className="text-2xl font-black text-white uppercase tracking-tighter italic">HLH ENGENHARIA</h2>
+          <div className="flex items-center justify-center gap-3 text-amber-500/50 font-black text-xs uppercase tracking-[0.3em]">
+            <Loader2 size={16} className="animate-spin" /> Sincronizando Projetos...
           </div>
         </div>
       </div>
     );
   }
 
-  const isConfigured = DatabaseService.isConfigured();
-
   return (
-    <div className="min-h-screen bg-slate-100 flex flex-col md:flex-row">
-      <aside className="hidden md:flex flex-col w-64 bg-slate-900 text-white p-6 sticky top-0 h-screen shadow-2xl">
-        <div className="mb-10 flex items-center gap-3 cursor-pointer" onClick={() => setCurrentView('dashboard')}>
-          <div className="bg-amber-500 p-2 rounded-xl">
-            <HardHat className="text-slate-900" size={28} />
+    <div className="min-h-screen bg-slate-100 flex flex-col md:flex-row font-['Inter']">
+      {/* Sidebar */}
+      <aside className="hidden md:flex flex-col w-72 bg-slate-900 text-white p-8 sticky top-0 h-screen shadow-2xl z-40">
+        <div className="mb-12 flex items-center gap-4 cursor-pointer" onClick={() => setCurrentView('dashboard')}>
+          <div className="bg-amber-500 p-3 rounded-2xl shadow-lg shadow-amber-500/20">
+            <HardHat className="text-slate-900" size={32} />
           </div>
           <div>
-            <h1 className="text-2xl font-black tracking-tighter leading-none">HLH</h1>
-            <p className="text-[10px] text-amber-500 uppercase tracking-[0.2em] font-black">Engenharia</p>
+            <h1 className="text-3xl font-black tracking-tighter leading-none italic">HLH</h1>
+            <p className="text-[10px] text-amber-500 uppercase tracking-[0.25em] font-black opacity-80">Engenharia</p>
           </div>
         </div>
 
-        <nav className="space-y-2 flex-1 font-black">
-          <button 
-            onClick={() => { setCurrentView('dashboard'); setSelectedProjectId(null); }}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all uppercase text-xs tracking-widest ${currentView === 'dashboard' ? 'bg-amber-500 text-slate-900 shadow-lg' : 'hover:bg-slate-800 text-slate-400'}`}
-          >
-            <LayoutDashboard size={20} />
-            PAINEL GERAL
-          </button>
-
-          <button 
-            onClick={() => { setCurrentView('employees'); setSelectedProjectId(null); }}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all uppercase text-xs tracking-widest ${currentView === 'employees' ? 'bg-amber-500 text-slate-900 shadow-lg' : 'hover:bg-slate-800 text-slate-400'}`}
-          >
-            <Users size={20} />
-            COLABORADORES
-          </button>
+        <nav className="space-y-3 flex-1">
+          <SideButton 
+            active={currentView === 'dashboard'} 
+            onClick={() => {setCurrentView('dashboard'); setSelectedProjectId(null);}} 
+            icon={<LayoutDashboard size={20}/>} 
+            label="PAINEL GERAL" 
+          />
+          <SideButton 
+            active={currentView === 'employees'} 
+            onClick={() => {setCurrentView('employees'); setSelectedProjectId(null);}} 
+            icon={<Users size={20}/>} 
+            label="EQUIPE ATIVA" 
+          />
           
-          <div className="pt-6">
-            <p className="text-[10px] text-slate-600 font-black uppercase px-4 mb-4 tracking-[0.3em]">Obras em Foco</p>
-            <div className="space-y-1 overflow-y-auto max-h-[35vh] no-scrollbar">
-              {projects.length === 0 ? (
-                <p className="px-4 text-[9px] text-slate-600 uppercase font-bold italic">Nenhuma obra cadastrada</p>
-              ) : (
-                projects.map(p => (
-                  <button
-                    key={p.id}
-                    onClick={() => handleSelectProject(p.id)}
-                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-[11px] transition-all uppercase tracking-widest border border-transparent ${selectedProjectId === p.id && currentView === 'project' ? 'bg-slate-800 text-amber-500 border-slate-700' : 'hover:bg-slate-800/50 text-slate-500'}`}
-                  >
-                    <span className={`w-2 h-2 rounded-full ${p.status === 'Em andamento' ? 'bg-green-500' : p.status === 'Concluída' ? 'bg-slate-400' : 'bg-amber-500'}`} />
-                    {p.name}
-                  </button>
-                ))
-              )}
+          <div className="pt-10">
+            <p className="text-[10px] text-slate-500 font-black uppercase px-4 mb-6 tracking-[0.3em]">Obras em Andamento</p>
+            <div className="space-y-2 overflow-y-auto max-h-[30vh] no-scrollbar pr-2">
+              {projects.map(p => (
+                <button
+                  key={p.id}
+                  onClick={() => {setSelectedProjectId(p.id); setCurrentView('project');}}
+                  className={`w-full flex items-center gap-3 px-5 py-4 rounded-2xl text-[11px] font-black transition-all uppercase tracking-widest border-2 ${selectedProjectId === p.id && currentView === 'project' ? 'bg-amber-500 text-slate-900 border-amber-400 shadow-xl shadow-amber-500/10' : 'hover:bg-slate-800/50 text-slate-400 border-transparent'}`}
+                >
+                  <div className={`w-2 h-2 rounded-full ${p.status === 'Em andamento' ? 'bg-green-500' : 'bg-amber-500'}`} />
+                  <span className="truncate">{p.name}</span>
+                </button>
+              ))}
             </div>
           </div>
         </nav>
 
-        <div className="mt-auto pt-6 border-t border-slate-800">
-           {!isConfigured ? (
-             <button 
-               onClick={() => setIsSettingsOpen(true)}
-               className="w-full bg-amber-500/10 border border-amber-500/30 text-amber-500 py-4 rounded-2xl flex flex-col items-center justify-center gap-1 hover:bg-amber-500 hover:text-slate-900 transition-all group animate-pulse hover:animate-none"
-             >
-               <Cloud size={20} />
-               <span className="text-[9px] font-black uppercase tracking-widest">Ativar Supabase</span>
-             </button>
-           ) : (
-             <div className="bg-slate-800/50 p-4 rounded-2xl border border-slate-800 flex flex-col gap-3">
-               <div className="flex items-center justify-between">
-                 <div className="flex items-center gap-2">
-                   {/* Completed truncated line and status UI */}
-                   <div className={`w-2 h-2 rounded-full ${syncError ? 'bg-red-500' : isSyncing ? 'bg-amber-500 animate-pulse' : 'bg-green-500'}`} />
-                   <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">
-                     {syncError ? 'Erro Sinc' : isSyncing ? 'Sincronizando' : 'Nuvem Ativa'}
-                   </span>
-                 </div>
-                 <button onClick={() => setIsSettingsOpen(true)} className="text-slate-500 hover:text-amber-500 transition-colors">
-                   <Settings size={14} />
-                 </button>
-               </div>
+        <div className="mt-auto pt-8 border-t border-slate-800 space-y-4">
+           {/* BOTÃO DA ENGRENAGEM (CONFIGURAÇÕES) NO DESKTOP */}
+           <button 
+             onClick={() => setIsSettingsOpen(true)}
+             className={`w-full flex items-center justify-between p-4 rounded-2xl transition-all border-2 ${dbStatus.success ? 'bg-green-500/10 border-green-500/20 text-green-500' : 'bg-amber-500 text-slate-900 border-amber-400 animate-pulse shadow-lg shadow-amber-500/20'}`}
+           >
+             <div className="flex items-center gap-3">
+               {dbStatus.success ? <CloudCheck size={20} /> : <Database size={20} />}
+               <span className="text-[10px] font-black uppercase tracking-widest">{dbStatus.success ? 'Nuvem Ativa' : 'CONECTAR BANCO'}</span>
              </div>
-           )}
+             <Settings size={16} className={!dbStatus.success ? 'animate-spin-slow' : ''} />
+           </button>
         </div>
       </aside>
 
-      <main className="flex-1 p-4 md:p-10 overflow-y-auto max-h-screen">
-        <header className="flex justify-between items-center mb-10">
-          <div className="md:hidden flex items-center gap-3" onClick={() => setCurrentView('dashboard')}>
-            <div className="bg-amber-500 p-2 rounded-xl">
-              <HardHat className="text-slate-900" size={24} />
-            </div>
-            <h1 className="text-xl font-black tracking-tighter uppercase">HLH</h1>
-          </div>
-          
+      <main className="flex-1 flex flex-col min-w-0 max-h-screen overflow-y-auto">
+        <header className="bg-white/80 backdrop-blur-md border-b border-slate-200 px-8 py-6 flex items-center justify-between sticky top-0 z-30">
           <div className="flex items-center gap-4">
-            {currentView === 'dashboard' && (
-              <button 
-                onClick={() => setIsNewProjectModalOpen(true)}
-                className="bg-slate-900 text-white font-black px-6 py-3 rounded-xl flex items-center gap-2 uppercase text-[10px] tracking-widest shadow-xl active:scale-95 transition-all"
-              >
-                <Plus size={18} /> NOVA OBRA
-              </button>
-            )}
-            <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-slate-400 border border-slate-200 relative">
-              <Bell size={20} />
-              <span className="absolute top-0 right-0 w-2 h-2 bg-red-500 rounded-full border-2 border-white" />
+            <div className="md:hidden bg-amber-500 p-2 rounded-xl" onClick={() => setCurrentView('dashboard')}>
+               <HardHat size={24} className="text-slate-900" />
+            </div>
+            <h2 className="text-2xl font-black text-slate-900 uppercase tracking-tighter italic">
+              {currentView === 'dashboard' ? 'Centro de Operações' : 
+               currentView === 'employees' ? 'Gestão de Capital Humano' : 
+               selectedProject?.name}
+            </h2>
+          </div>
+
+          <div className="flex items-center gap-4">
+            {isSyncing && <div className="flex items-center gap-2 text-amber-500 animate-pulse"><Loader2 size={16} className="animate-spin" /><span className="text-[10px] font-black uppercase tracking-widest">Salvando...</span></div>}
+            
+            <div className="flex items-center gap-2">
+               {/* BOTÃO DA ENGRENAGEM (CONFIGURAÇÕES) NO MOBILE */}
+               <button 
+                 onClick={() => setIsSettingsOpen(true)}
+                 className={`p-3 rounded-xl flex items-center gap-2 transition-all md:hidden ${dbStatus.success ? 'bg-slate-100 text-slate-500' : 'bg-amber-500 text-slate-900 animate-bounce shadow-lg shadow-amber-500/20'}`}
+                 title="Configurações Supabase"
+               >
+                 <Settings size={20} />
+                 {!dbStatus.success && <span className="text-[10px] font-black uppercase tracking-widest pr-2">CONECTAR</span>}
+               </button>
+               
+               {currentView === 'dashboard' && (
+                 <button 
+                   onClick={() => setIsNewProjectModalOpen(true)}
+                   className="bg-slate-900 text-white font-black px-6 md:px-8 py-4 rounded-2xl flex items-center gap-3 transition-all active:scale-95 shadow-xl shadow-slate-200 uppercase text-xs tracking-widest hover:bg-slate-800"
+                 >
+                   <Plus size={20} /> <span className="hidden sm:inline">LANÇAR NOVA OBRA</span><span className="sm:hidden">NOVA OBRA</span>
+                 </button>
+               )}
             </div>
           </div>
         </header>
 
-        {currentView === 'dashboard' && (
-          <Dashboard projects={projects} onSelect={handleSelectProject} onDeleteProject={deleteProject} />
-        )}
-        {currentView === 'employees' && (
-          <EmployeeManagement employees={globalEmployees} setEmployees={setGlobalEmployees} projects={projects} onUpdateProjects={setProjects} />
-        )}
-        {currentView === 'project' && selectedProject && (
-          <ProjectDetail 
-            project={selectedProject} 
-            onUpdate={updateProject} 
-            onDelete={() => deleteProject(selectedProject.id)}
-            onBack={() => { setCurrentView('dashboard'); setSelectedProjectId(null); }}
-          />
-        )}
+        <div className="p-8">
+          {dbStatus.code === 'MISSING_TABLES' && (
+            <div className="mb-8 bg-amber-50 border-2 border-amber-200 rounded-[2rem] p-8 flex flex-col md:flex-row items-center gap-8 animate-in slide-in-from-top duration-500">
+               <div className="bg-amber-500 p-6 rounded-[2rem] text-slate-900"><Terminal size={48} /></div>
+               <div className="flex-1 space-y-2">
+                 <h3 className="text-xl font-black text-slate-900 uppercase tracking-tighter">Quase lá! Faltam as tabelas no Supabase</h3>
+                 <p className="text-slate-600 text-sm font-medium">Conectamos na sua URL, mas seu banco de dados está vazio. Clique no botão ao lado para copiar o script de criação e cole no <b>SQL Editor</b> do seu painel Supabase.</p>
+               </div>
+               <button onClick={copySQL} className="bg-slate-900 text-white px-8 py-5 rounded-2xl font-black uppercase text-xs tracking-widest flex items-center gap-3 shadow-xl active:scale-95 transition-all">
+                 <Copy size={20} /> COPIAR SCRIPT SQL
+               </button>
+            </div>
+          )}
+
+          {!dbStatus.success && dbStatus.code !== 'MISSING_TABLES' && currentView === 'dashboard' && (
+            <div className="mb-8 bg-slate-900 border-2 border-amber-500 rounded-[2rem] p-8 flex flex-col md:flex-row items-center gap-8 animate-in slide-in-from-top duration-500">
+               <div className="bg-amber-500 p-6 rounded-[2rem] text-slate-900"><Settings size={48} className="animate-spin-slow" /></div>
+               <div className="flex-1 space-y-2">
+                 <h3 className="text-xl font-black text-white uppercase tracking-tighter">Ativar Banco de Dados (Nuvem)</h3>
+                 <p className="text-slate-400 text-sm font-medium">Seus dados estão sendo salvos apenas localmente. Clique no botão de engrenagem abaixo ou no botão ao lado para conectar ao Supabase.</p>
+               </div>
+               <button onClick={() => setIsSettingsOpen(true)} className="bg-amber-500 text-slate-900 px-8 py-5 rounded-2xl font-black uppercase text-xs tracking-widest flex items-center gap-3 shadow-xl active:scale-95 transition-all">
+                 <Database size={20} /> CONECTAR AGORA
+               </button>
+            </div>
+          )}
+
+          {currentView === 'project' && selectedProject ? (
+            <ProjectDetail project={selectedProject} onUpdate={updateProject} onDelete={() => deleteProject(selectedProject.id)} onBack={() => setCurrentView('dashboard')} />
+          ) : currentView === 'employees' ? (
+            <EmployeeManagement employees={globalEmployees} setEmployees={setGlobalEmployees} projects={projects} onUpdateProjects={setProjects} />
+          ) : (
+            <Dashboard projects={projects} onSelect={(id) => {setSelectedProjectId(id); setCurrentView('project');}} onDeleteProject={deleteProject} />
+          )}
+        </div>
       </main>
 
-      {/* Settings Modal */}
       {isSettingsOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setIsSettingsOpen(false)} />
-          <div className="relative bg-white w-full max-w-md rounded-3xl shadow-2xl overflow-hidden p-8">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-xl font-black text-slate-900 uppercase tracking-tight flex items-center gap-2">
-                <Database size={20} className="text-amber-500" />
-                Configurar Supabase
-              </h2>
-              <button onClick={() => setIsSettingsOpen(false)} className="text-slate-400 hover:text-slate-900">
-                <X size={20} />
-              </button>
-            </div>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Supabase URL</label>
-                <input 
-                  type="text" 
-                  value={dbUrl} 
-                  onChange={e => setDbUrl(e.target.value)}
-                  className="w-full bg-slate-100 border-none rounded-xl px-4 py-3 font-black text-sm outline-none focus:ring-2 focus:ring-amber-500" 
-                  placeholder="https://your-project.supabase.co" 
-                />
-              </div>
-              <div>
-                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Anon Key</label>
-                <input 
-                  type="password" 
-                  value={dbKey} 
-                  onChange={e => setDbKey(e.target.value)}
-                  className="w-full bg-slate-100 border-none rounded-xl px-4 py-3 font-black text-sm outline-none focus:ring-2 focus:ring-amber-500" 
-                  placeholder="sua-chave-anon-aqui" 
-                />
-              </div>
-              <button 
-                onClick={handleSaveConfig}
-                className="w-full bg-slate-900 text-white font-black py-4 rounded-xl flex items-center justify-center gap-2 uppercase text-xs tracking-widest shadow-xl mt-4"
-              >
-                <Save size={18} /> Salvar Configuração
-              </button>
-            </div>
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-6">
+          <div className="absolute inset-0 bg-slate-900/80 backdrop-blur-xl" onClick={() => setIsSettingsOpen(false)} />
+          <div className="relative bg-white w-full max-w-xl rounded-[3rem] shadow-2xl overflow-hidden animate-in zoom-in duration-300">
+             <div className="bg-slate-900 p-10 flex items-center justify-between text-white">
+                <div className="flex items-center gap-4">
+                  <div className="bg-amber-500 p-3 rounded-2xl text-slate-900"><Settings size={24} /></div>
+                  <div>
+                    <h2 className="text-2xl font-black uppercase tracking-tighter italic">Configuração do Banco</h2>
+                    <p className="text-slate-400 text-[10px] font-black uppercase tracking-widest">Sincronização via Supabase</p>
+                  </div>
+                </div>
+                <button onClick={() => setIsSettingsOpen(false)} className="p-3 bg-white/10 rounded-full hover:bg-white/20 transition-all">
+                  <X size={24} />
+                </button>
+             </div>
+             
+             <div className="p-10 space-y-8">
+                <div className="space-y-6">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Project URL (Copie do Supabase)</label>
+                    <div className="relative group">
+                      <div className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-amber-500 transition-colors">
+                        <LinkIcon size={20} />
+                      </div>
+                      <input 
+                        type="text"
+                        value={dbUrl}
+                        onChange={e => setDbUrl(e.target.value)}
+                        placeholder="Ex: https://xyz.supabase.co"
+                        className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl pl-16 pr-6 py-5 font-black text-sm outline-none focus:border-amber-500 focus:bg-white transition-all"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Anon Key (Public API Key)</label>
+                    <div className="relative group">
+                      <div className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-amber-500 transition-colors">
+                        <ShieldCheck size={20} />
+                      </div>
+                      <input 
+                        type="password"
+                        value={dbKey}
+                        onChange={e => setDbKey(e.target.value)}
+                        placeholder="Cole sua chave aqui..."
+                        className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl pl-16 pr-6 py-5 font-black text-sm outline-none focus:border-amber-500 focus:bg-white transition-all"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {dbStatus.message && (
+                  <div className={`p-5 rounded-2xl flex items-center gap-4 border-2 ${dbStatus.success ? 'bg-green-50 border-green-100 text-green-700' : 'bg-amber-50 border-amber-100 text-amber-700'}`}>
+                    {dbStatus.success ? <CheckCircle2 size={24} /> : <AlertCircle size={24} />}
+                    <p className="text-xs font-black uppercase tracking-tight">{dbStatus.message}</p>
+                  </div>
+                )}
+
+                <div className="flex flex-col gap-4">
+                  <button 
+                    onClick={handleSaveConfig}
+                    className="w-full bg-slate-900 text-white font-black py-6 rounded-2xl shadow-xl shadow-slate-200 flex items-center justify-center gap-3 uppercase text-xs tracking-[0.2em] active:scale-95 transition-all hover:bg-slate-800"
+                  >
+                    <Save size={22} className="text-amber-500" /> SALVAR E CONECTAR
+                  </button>
+                </div>
+             </div>
           </div>
         </div>
       )}
 
-      {/* New Project Modal */}
-      <NewProjectModal 
-        isOpen={isNewProjectModalOpen} 
-        onClose={() => setIsNewProjectModalOpen(false)} 
-        onAdd={addProject} 
-      />
+      <NewProjectModal isOpen={isNewProjectModalOpen} onClose={() => setIsNewProjectModalOpen(false)} onAdd={addProject} />
     </div>
   );
 };
 
-// Fixed: Add default export to resolve the module error in index.tsx
+const SideButton: React.FC<{active: boolean, onClick: () => void, icon: React.ReactNode, label: string}> = ({ active, onClick, icon, label }) => (
+  <button 
+    onClick={onClick}
+    className={`w-full flex items-center gap-4 px-6 py-5 rounded-[1.5rem] transition-all uppercase text-[11px] font-black tracking-[0.15em] border-2 ${active ? 'bg-amber-500 text-slate-900 border-amber-400 shadow-xl shadow-amber-500/20' : 'hover:bg-slate-800 text-slate-400 border-transparent'}`}
+  >
+    {icon} {label}
+  </button>
+);
+
 export default App;
