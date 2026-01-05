@@ -6,7 +6,7 @@ import {
   Plus, Calendar, User, Folder, Star,
   Trash2, ExternalLink, MapPin, Briefcase, 
   ChevronRight, ArrowLeft, Printer, Check, ClipboardList, ChevronLeft, Save, Map as MapIcon,
-  Percent, Upload, FileUp
+  Percent, Upload, FileUp, CheckCircle2, XCircle, AlertCircle
 } from 'lucide-react';
 
 interface ProjectDetailProps {
@@ -60,7 +60,6 @@ const ProjectDetail: React.FC<ProjectDetailProps> = ({ project, onUpdate, onDele
         </div>
 
         <div className="flex flex-col sm:flex-row gap-6 w-full lg:w-auto items-center">
-          {/* Controle de Progresso Personalizado */}
           <div className="bg-slate-50 p-5 rounded-2xl border border-slate-200 flex-1 min-w-[200px] w-full">
             <div className="flex justify-between items-center mb-2">
               <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Progresso da Obra</span>
@@ -74,13 +73,8 @@ const ProjectDetail: React.FC<ProjectDetailProps> = ({ project, onUpdate, onDele
               onChange={(e) => handleProgressChange(parseInt(e.target.value))}
               className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-amber-500 transition-all"
             />
-            <div className="flex justify-between mt-1">
-              <span className="text-[8px] font-black text-slate-300 uppercase">Início</span>
-              <span className="text-[8px] font-black text-slate-300 uppercase">Conclusão</span>
-            </div>
           </div>
 
-          {/* Status Select */}
           <div className="bg-slate-50 p-5 rounded-2xl border border-slate-200 w-full sm:w-auto">
             <span className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Status da Obra</span>
             <select 
@@ -92,25 +86,23 @@ const ProjectDetail: React.FC<ProjectDetailProps> = ({ project, onUpdate, onDele
                 'bg-amber-500 text-slate-900 border-amber-600'
               }`}
             >
-              <option value="Planejamento" className="bg-white text-slate-900">PLANEJAMENTO</option>
-              <option value="Em andamento" className="bg-white text-slate-900">EM ANDAMENTO</option>
-              <option value="Concluída" className="bg-white text-slate-900">CONCLUÍDA</option>
+              <option value="Planejamento">PLANEJAMENTO</option>
+              <option value="Em andamento">EM ANDAMENTO</option>
+              <option value="Concluída">CONCLUÍDA</option>
             </select>
           </div>
         </div>
       </div>
 
-      {/* Tabs */}
       <div className="flex overflow-x-auto gap-2 mb-8 no-scrollbar pb-2">
         <TabButton label="DIÁRIO RDO" active={activeTab === 'rdo'} onClick={() => setActiveTab('rdo')} icon={<FileText size={16}/>} />
         <TabButton label="COMPRAS" active={activeTab === 'purchases'} onClick={() => setActiveTab('purchases')} icon={<ShoppingCart size={16}/>} />
-        <TabButton label="EQUIPE" active={activeTab === 'presence'} onClick={() => setActiveTab('presence')} icon={<Users size={16}/>} />
+        <TabButton label="FREQUÊNCIA" active={activeTab === 'presence'} onClick={() => setActiveTab('presence')} icon={<Users size={16}/>} />
         <TabButton label="FOTOS" active={activeTab === 'photos'} onClick={() => setActiveTab('photos')} icon={<Camera size={16}/>} />
         <TabButton label="CONTRATOS" active={activeTab === 'contracts'} onClick={() => setActiveTab('contracts')} icon={<Briefcase size={16}/>} />
         <TabButton label="MAPA" active={activeTab === 'location'} onClick={() => setActiveTab('location')} icon={<MapPin size={16}/>} />
       </div>
 
-      {/* Module Container */}
       <div className="bg-white rounded-3xl border border-slate-200 shadow-xl overflow-hidden min-h-[500px]">
         {activeTab === 'rdo' && <RDOModule project={project} onUpdate={handleSubUpdate} />}
         {activeTab === 'purchases' && <PurchasesModule project={project} onUpdate={handleSubUpdate} />}
@@ -131,6 +123,142 @@ const TabButton: React.FC<{label: string, active: boolean, onClick: () => void, 
     {icon} {label}
   </button>
 );
+
+const PresenceModule: React.FC<{project: Project, onUpdate: (key: keyof Project, data: any) => void}> = ({ project, onUpdate }) => {
+  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+
+  const togglePresence = (employee: Employee, status: 'Presente' | 'Faltou' | 'Atestado') => {
+    const existingIndex = project.presence.findIndex(p => p.date === selectedDate && p.employeeId === employee.id);
+    let newPresence = [...project.presence];
+
+    if (existingIndex > -1) {
+      if (newPresence[existingIndex].status === status) {
+        newPresence.splice(existingIndex, 1);
+      } else {
+        newPresence[existingIndex] = { ...newPresence[existingIndex], status };
+      }
+    } else {
+      newPresence.push({
+        id: Date.now().toString() + Math.random(),
+        date: selectedDate,
+        employeeId: employee.id,
+        employeeName: employee.name,
+        status
+      });
+    }
+    onUpdate('presence', newPresence);
+  };
+
+  const getStatus = (employeeId: string) => {
+    return project.presence.find(p => p.date === selectedDate && p.employeeId === employeeId)?.status;
+  };
+
+  return (
+    <div className="p-8">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-10">
+        <div>
+          <h3 className="text-2xl font-black text-slate-900 uppercase tracking-tighter">Controle de Frequência</h3>
+          <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest">Marque a presença diária da equipe alocada</p>
+        </div>
+        <div className="flex items-center gap-3 bg-slate-50 p-3 rounded-2xl border border-slate-200">
+          <Calendar size={18} className="text-amber-500" />
+          <input 
+            type="date" 
+            value={selectedDate} 
+            onChange={(e) => setSelectedDate(e.target.value)}
+            className="bg-transparent border-none outline-none font-black text-sm text-slate-900"
+          />
+        </div>
+      </div>
+      
+      <div className="bg-slate-50 rounded-[2rem] border border-slate-200 overflow-hidden">
+        <table className="w-full text-left">
+          <thead className="bg-white border-b border-slate-100">
+            <tr className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+              <th className="px-8 py-4">Colaborador</th>
+              <th className="px-8 py-4">Função</th>
+              <th className="px-8 py-4 text-center">Controle de Presença</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100 font-black">
+            {project.employees.length === 0 ? (
+              <tr>
+                <td colSpan={3} className="py-24 text-center">
+                  <div className="flex flex-col items-center gap-3 opacity-20">
+                    <Users size={48} />
+                    <p className="text-xs uppercase tracking-widest">Nenhum colaborador alocado nesta obra.</p>
+                    <p className="text-[10px] normal-case">Vá em 'Colaboradores' para vincular profissionais.</p>
+                  </div>
+                </td>
+              </tr>
+            ) : (
+              project.employees.map(emp => {
+                const status = getStatus(emp.id);
+                return (
+                  <tr key={emp.id} className="bg-white hover:bg-slate-50 transition-colors">
+                    <td className="px-8 py-5">
+                      <div className="flex items-center gap-4">
+                        <div className="w-10 h-10 bg-slate-900 rounded-xl flex items-center justify-center text-amber-500 text-sm font-black">
+                          {emp.name.charAt(0)}
+                        </div>
+                        <span className="text-slate-900 text-sm uppercase tracking-tight">{emp.name}</span>
+                      </div>
+                    </td>
+                    <td className="px-8 py-5">
+                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{emp.role}</span>
+                    </td>
+                    <td className="px-8 py-5">
+                      <div className="flex items-center justify-center gap-4">
+                        <PresenceBtn 
+                          active={status === 'Presente'} 
+                          onClick={() => togglePresence(emp, 'Presente')} 
+                          label="PRESENTE" 
+                          icon={<CheckCircle2 size={16}/>}
+                          color="green"
+                        />
+                        <PresenceBtn 
+                          active={status === 'Faltou'} 
+                          onClick={() => togglePresence(emp, 'Faltou')} 
+                          label="FALTOU" 
+                          icon={<XCircle size={16}/>}
+                          color="red"
+                        />
+                        <PresenceBtn 
+                          active={status === 'Atestado'} 
+                          onClick={() => togglePresence(emp, 'Atestado')} 
+                          label="ATESTADO" 
+                          icon={<AlertCircle size={16}/>}
+                          color="amber"
+                        />
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+};
+
+const PresenceBtn: React.FC<{active: boolean, onClick: () => void, label: string, icon: React.ReactNode, color: 'green' | 'red' | 'amber'}> = ({ active, onClick, label, icon, color }) => {
+  const colors = {
+    green: active ? 'bg-green-500 text-white shadow-green-500/20' : 'text-slate-300 hover:text-green-500 hover:bg-green-50',
+    red: active ? 'bg-red-500 text-white shadow-red-500/20' : 'text-slate-300 hover:text-red-500 hover:bg-red-50',
+    amber: active ? 'bg-amber-500 text-white shadow-amber-500/20' : 'text-slate-300 hover:text-amber-500 hover:bg-amber-50'
+  };
+
+  return (
+    <button 
+      onClick={onClick}
+      className={`px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest flex items-center gap-2 transition-all border border-transparent ${colors[color]}`}
+    >
+      {icon} {label}
+    </button>
+  );
+};
 
 const PhotosModule: React.FC<{project: Project, onUpdate: (key: keyof Project, data: any) => void, onUpdateAll: (p: Project) => void}> = ({ project, onUpdate, onUpdateAll }) => {
   const handleUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -194,7 +322,6 @@ const PhotosModule: React.FC<{project: Project, onUpdate: (key: keyof Project, d
                  <Trash2 size={14} /> Excluir
                </button>
             </div>
-
             {project.mainPhoto === photo.url && (
               <div className="absolute top-3 left-3 bg-amber-500 text-slate-900 p-2 rounded-xl shadow-lg border-2 border-amber-600">
                 <Star size={14} fill="currentColor" />
@@ -405,51 +532,6 @@ const PurchasesModule: React.FC<{project: Project, onUpdate: (key: keyof Project
   );
 };
 
-const PresenceModule: React.FC<{project: Project, onUpdate: (key: keyof Project, data: any) => void}> = ({ project, onUpdate }) => {
-  const [empName, setEmpName] = useState('');
-  
-  const addEmployee = () => {
-    if(!empName) return;
-    const newEmp: Employee = { id: Date.now().toString(), name: empName.toUpperCase(), role: 'EQUIPE', active: true };
-    onUpdate('employees', [...project.employees, newEmp]);
-    setEmpName('');
-  };
-
-  return (
-    <div className="p-8">
-      <div className="flex justify-between items-center mb-8">
-        <h3 className="text-2xl font-black text-slate-900 uppercase tracking-tighter">Equipe Alocada</h3>
-        <div className="flex gap-2">
-          <input 
-            type="text" 
-            value={empName} 
-            onChange={e => setEmpName(e.target.value)}
-            className="bg-slate-100 border-none rounded-xl px-4 py-2 text-sm font-black uppercase outline-none" 
-            placeholder="Nome Colaborador"
-          />
-          <button onClick={addEmployee} className="bg-slate-900 text-white p-2 rounded-xl active:scale-95"><Plus size={20}/></button>
-        </div>
-      </div>
-      
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 font-black">
-        {project.employees.length === 0 ? (
-          <div className="col-span-full text-center py-20 text-slate-300 uppercase tracking-widest text-xs">Nenhum colaborador alocado nesta obra.</div>
-        ) : (
-          project.employees.map(emp => (
-            <div key={emp.id} className="p-4 bg-slate-50 rounded-2xl flex items-center justify-between border border-slate-100">
-               <div>
-                 <p className="text-sm text-slate-900 uppercase">{emp.name}</p>
-                 <p className="text-[10px] text-slate-400 uppercase tracking-widest">{emp.role}</p>
-               </div>
-               <div className="w-3 h-3 rounded-full bg-green-500"></div>
-            </div>
-          ))
-        )}
-      </div>
-    </div>
-  );
-};
-
 const ContractsModule: React.FC<{project: Project, onUpdate: (key: keyof Project, data: any) => void}> = ({ project, onUpdate }) => {
   const [currentFolder, setCurrentFolder] = useState<'root' | 'cliente' | 'empreiteiro'>('root');
   const [isAdding, setIsAdding] = useState(false);
@@ -564,44 +646,22 @@ const ContractsModule: React.FC<{project: Project, onUpdate: (key: keyof Project
                   value={form.fileName || form.url} 
                   onChange={e => setForm({...form, url: e.target.value, fileName: ''})} 
                   className="flex-1 bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm font-black outline-none focus:ring-2 focus:ring-amber-500" 
-                  placeholder="Link do arquivo ou selecione o PDF ao lado ->" 
+                  placeholder="Link do arquivo ou selecione o PDF" 
                   readOnly={!!form.fileName}
                 />
-                <input 
-                  type="file" 
-                  accept=".pdf" 
-                  className="hidden" 
-                  ref={fileInputRef} 
-                  onChange={handleFileUpload} 
-                />
+                <input type="file" accept=".pdf" className="hidden" ref={fileInputRef} onChange={handleFileUpload} />
                 <button 
                   onClick={() => fileInputRef.current?.click()}
                   className="bg-amber-500 text-slate-900 px-4 rounded-xl flex items-center gap-2 hover:bg-amber-600 transition-colors"
-                  title="Upload PDF"
                 >
                   <FileUp size={18} />
                 </button>
               </div>
-              {form.fileName && (
-                <p className="text-[9px] text-green-600 font-black uppercase mt-1 flex items-center gap-1">
-                  <Check size={10} /> Arquivo Selecionado: {form.fileName}
-                </p>
-              )}
             </div>
           </div>
           <div className="flex justify-end gap-3 pt-2">
-            <button 
-              onClick={() => { setIsAdding(false); setForm({ name: '', url: '', fileName: '' }); }} 
-              className="px-6 py-2 text-slate-400 font-black uppercase text-[10px] tracking-widest"
-            >
-              Cancelar
-            </button>
-            <button 
-              onClick={addContract} 
-              className="bg-amber-500 text-slate-900 px-8 py-3 rounded-xl font-black uppercase text-[10px] tracking-widest shadow-lg"
-            >
-              SALVAR DOCUMENTO
-            </button>
+            <button onClick={() => { setIsAdding(false); setForm({ name: '', url: '', fileName: '' }); }} className="px-6 py-2 text-slate-400 font-black uppercase text-[10px] tracking-widest">Cancelar</button>
+            <button onClick={addContract} className="bg-amber-500 text-slate-900 px-8 py-3 rounded-xl font-black uppercase text-[10px] tracking-widest shadow-lg">SALVAR DOCUMENTO</button>
           </div>
         </div>
       )}
@@ -622,22 +682,8 @@ const ContractsModule: React.FC<{project: Project, onUpdate: (key: keyof Project
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                <a 
-                  href={c.url} 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="p-3 text-slate-400 hover:text-slate-900 hover:bg-slate-50 rounded-xl transition-all"
-                  title="Abrir Documento"
-                >
-                  <ExternalLink size={20} />
-                </a>
-                <button 
-                  onClick={() => handleDelete(c.id)}
-                  className="p-3 text-slate-300 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all"
-                  title="Remover Documento"
-                >
-                  <Trash2 size={20} />
-                </button>
+                <a href={c.url} target="_blank" rel="noopener noreferrer" className="p-3 text-slate-400 hover:text-slate-900 hover:bg-slate-50 rounded-xl transition-all"><ExternalLink size={20} /></a>
+                <button onClick={() => handleDelete(c.id)} className="p-3 text-slate-300 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all"><Trash2 size={20} /></button>
               </div>
             </div>
           ))
@@ -648,10 +694,7 @@ const ContractsModule: React.FC<{project: Project, onUpdate: (key: keyof Project
 };
 
 const FolderCard: React.FC<{title: string, count: number, onClick: () => void}> = ({ title, count, onClick }) => (
-  <button 
-    onClick={onClick}
-    className="bg-white border border-slate-200 p-8 rounded-3xl text-left hover:border-amber-500 hover:shadow-xl transition-all group flex items-center justify-between"
-  >
+  <button onClick={onClick} className="bg-white border border-slate-200 p-8 rounded-3xl text-left hover:border-amber-500 hover:shadow-xl transition-all group flex items-center justify-between">
     <div className="flex items-center gap-6">
       <div className="bg-amber-500/10 p-5 rounded-2xl group-hover:bg-amber-500 transition-colors">
         <Folder className="text-amber-600 group-hover:text-slate-900" size={32} />
@@ -678,7 +721,7 @@ const LocationModule: React.FC<{project: Project, onUpdateLocation: (loc: string
     <div className="flex flex-col h-[600px]">
       <div className="p-6 bg-slate-50 border-b border-slate-200 flex flex-col md:flex-row items-center gap-4">
         <div className="flex-1 w-full">
-          <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Localização da Obra (Endereço ou Link Maps)</label>
+          <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Localização da Obra</label>
           <div className="relative group">
             <input 
               type="text" 
@@ -686,7 +729,7 @@ const LocationModule: React.FC<{project: Project, onUpdateLocation: (loc: string
               onChange={(e) => setNewLoc(e.target.value)}
               onFocus={() => setIsEditing(true)}
               className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm font-black pr-12 focus:ring-2 focus:ring-amber-500 outline-none transition-all" 
-              placeholder="Digite o endereço ou cole a URL do Google Maps..." 
+              placeholder="Endereço ou URL Maps..." 
             />
             <div className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-amber-500 transition-colors">
               <MapIcon size={20} />
@@ -694,28 +737,13 @@ const LocationModule: React.FC<{project: Project, onUpdateLocation: (loc: string
           </div>
         </div>
         {isEditing && (
-          <button 
-            onClick={handleSave}
-            className="w-full md:w-auto mt-2 md:mt-5 bg-slate-900 text-white font-black px-6 py-3 rounded-xl flex items-center justify-center gap-2 uppercase text-[10px] tracking-widest shadow-lg active:scale-95 animate-in slide-in-from-right-4"
-          >
-            <Save size={18} /> ATUALIZAR LOCALIZAÇÃO
+          <button onClick={handleSave} className="w-full md:w-auto mt-2 md:mt-5 bg-slate-900 text-white font-black px-6 py-3 rounded-xl flex items-center justify-center gap-2 uppercase text-[10px] tracking-widest shadow-lg active:scale-95 animate-in slide-in-from-right-4">
+            <Save size={18} /> ATUALIZAR MAPA
           </button>
         )}
       </div>
       <div className="flex-1 bg-slate-200 relative">
-        <iframe 
-          width="100%" 
-          height="100%" 
-          frameBorder="0" 
-          src={`https://www.google.com/maps?q=${encodeURIComponent(project.location)}&output=embed`} 
-          title="Mapa da Obra"
-          className="grayscale-[0.2] contrast-[1.1]"
-        />
-        <div className="absolute bottom-4 left-4 bg-white/90 backdrop-blur-sm p-3 rounded-xl border border-slate-200 shadow-lg">
-          <p className="text-[10px] font-black text-slate-900 uppercase tracking-widest flex items-center gap-2">
-            <MapPin size={12} className="text-amber-500"/> {project.location}
-          </p>
-        </div>
+        <iframe width="100%" height="100%" frameBorder="0" src={`https://www.google.com/maps?q=${encodeURIComponent(project.location)}&output=embed`} title="Mapa da Obra" />
       </div>
     </div>
   );

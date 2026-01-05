@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { Employee, Project } from '../types';
-import { UserPlus, Search, Trash2, Briefcase, UserCircle, Users, DollarSign, MapPin, X, ChevronDown } from 'lucide-react';
+import { UserPlus, Search, Briefcase, UserCircle, Users, DollarSign, MapPin, X, ChevronDown } from 'lucide-react';
 
 interface EmployeeManagementProps {
   employees: Employee[];
@@ -23,7 +23,7 @@ const EmployeeManagement: React.FC<EmployeeManagementProps> = ({ employees, setE
       role: newEmployee.role.toUpperCase(),
       dailyRate: newEmployee.dailyRate ? parseFloat(newEmployee.dailyRate) : 0,
       active: true,
-      projectId: '' // Começa sem obra
+      projectId: '' 
     };
     setEmployees(prev => [...prev, employee]);
     setNewEmployee({ name: '', role: '', dailyRate: '' });
@@ -31,38 +31,21 @@ const EmployeeManagement: React.FC<EmployeeManagementProps> = ({ employees, setE
   };
 
   const handleProjectChange = (employeeId: string, newProjectId: string) => {
-    // 1. Atualiza a lista global de colaboradores
     const updatedEmployees = employees.map(e => 
       e.id === employeeId ? { ...e, projectId: newProjectId } : e
     );
     setEmployees(updatedEmployees);
 
-    // 2. Sincroniza com as listas de equipe internas de cada objeto Project
     const employeeToMove = updatedEmployees.find(e => e.id === employeeId);
     if (!employeeToMove) return;
 
     onUpdateProjects(prevProjects => prevProjects.map(p => {
-      // Remove o colaborador de todas as outras obras
       const teamWithoutTarget = p.employees.filter(e => e.id !== employeeId);
-      
-      // Se esta for a obra selecionada, adiciona ele na lista interna dela
       if (p.id === newProjectId) {
         return { ...p, employees: [...teamWithoutTarget, { ...employeeToMove }] };
       }
-      
-      // Caso contrário, apenas retorna a lista limpa (sem o colaborador que foi movido)
       return { ...p, employees: teamWithoutTarget };
     }));
-  };
-
-  const handleDelete = (id: string) => {
-    if (window.confirm('TEM CERTEZA QUE DESEJA EXCLUIR ESTE COLABORADOR?')) {
-      setEmployees(prev => prev.filter(e => e.id !== id));
-      onUpdateProjects(prev => prev.map(p => ({
-        ...p,
-        employees: p.employees.filter(e => e.id !== id)
-      })));
-    }
   };
 
   const filteredEmployees = employees.filter(e => 
@@ -72,7 +55,6 @@ const EmployeeManagement: React.FC<EmployeeManagementProps> = ({ employees, setE
 
   return (
     <div className="max-w-6xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500 pb-20">
-      {/* Header Seção */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-10">
         <div>
           <h1 className="text-5xl font-black text-slate-900 tracking-tighter uppercase leading-none mb-1">Colaboradores HLH</h1>
@@ -83,13 +65,12 @@ const EmployeeManagement: React.FC<EmployeeManagementProps> = ({ employees, setE
           className={`font-black px-8 py-4 rounded-2xl flex items-center gap-2 uppercase text-xs tracking-widest shadow-xl transition-all active:scale-95 ${isAdding ? 'bg-amber-500 text-slate-900' : 'bg-amber-500 text-slate-900 shadow-amber-500/20'}`}
         >
           {isAdding ? <X size={18} /> : <UserPlus size={18} />} 
-          {isAdding ? 'CANCELAR' : 'CADASTRAR COLABORADOR'}
+          {isAdding ? 'CANCELAR' : 'NOVO COLABORADOR'}
         </button>
       </div>
 
-      {/* Formulário de Cadastro - Estilo conforme imagem */}
       {isAdding && (
-        <div className="p-1 rounded-[3rem] border-2 border-blue-400/40 mb-12 shadow-2xl animate-in zoom-in duration-300">
+        <div className="p-1 rounded-[3rem] border-2 border-blue-400/30 mb-12 shadow-2xl animate-in zoom-in duration-300">
            <div className="bg-white p-10 rounded-[2.8rem] border-2 border-amber-400">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
               <div className="space-y-3">
@@ -142,7 +123,7 @@ const EmployeeManagement: React.FC<EmployeeManagementProps> = ({ employees, setE
             <div className="flex justify-end">
               <button 
                 onClick={handleAdd}
-                className="bg-slate-900 text-white px-12 py-5 rounded-2xl font-black uppercase text-xs tracking-[0.2em] shadow-xl active:scale-95 transition-all hover:bg-slate-800 flex items-center gap-3"
+                className="bg-slate-900 text-white px-12 py-5 rounded-2xl font-black uppercase text-xs tracking-[0.2em] shadow-xl active:scale-95 transition-all hover:bg-slate-800"
               >
                 CADASTRAR COLABORADOR
               </button>
@@ -151,7 +132,6 @@ const EmployeeManagement: React.FC<EmployeeManagementProps> = ({ employees, setE
         </div>
       )}
 
-      {/* Tabela de Colaboradores */}
       <div className="bg-white rounded-[2.5rem] border border-slate-200 shadow-sm overflow-hidden">
         <div className="p-8 border-b border-slate-100 flex items-center gap-4 bg-slate-50/50">
           <Search className="text-slate-300" size={24} />
@@ -172,13 +152,12 @@ const EmployeeManagement: React.FC<EmployeeManagementProps> = ({ employees, setE
                 <th className="px-10 py-5">Cargo</th>
                 <th className="px-10 py-5">Obra Atual</th>
                 <th className="px-10 py-5 text-right">Valor</th>
-                <th className="px-10 py-5 text-center w-24"></th> {/* Cabeçalho AÇÃO removido conforme pedido */}
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 font-black">
               {filteredEmployees.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="py-24 text-center">
+                  <td colSpan={4} className="py-24 text-center">
                     <div className="flex flex-col items-center gap-3 opacity-20">
                       <Users size={64} />
                       <p className="text-xs uppercase tracking-[0.3em]">Nenhum colaborador encontrado</p>
@@ -202,7 +181,6 @@ const EmployeeManagement: React.FC<EmployeeManagementProps> = ({ employees, setE
                       </span>
                     </td>
                     <td className="px-10 py-6">
-                      {/* Função de Obra Modificável diretamente na lista */}
                       <div className="relative max-w-[220px]">
                         <select 
                           value={emp.projectId || ''} 
@@ -223,15 +201,6 @@ const EmployeeManagement: React.FC<EmployeeManagementProps> = ({ employees, setE
                       <span className="text-sm text-slate-900 font-black">
                         {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(emp.dailyRate || 0)}
                       </span>
-                    </td>
-                    <td className="px-10 py-6 text-center">
-                      <button 
-                        onClick={() => handleDelete(emp.id)}
-                        className="p-3 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all active:scale-90"
-                        title="Remover Colaborador"
-                      >
-                        <Trash2 size={20} />
-                      </button>
                     </td>
                   </tr>
                 ))
