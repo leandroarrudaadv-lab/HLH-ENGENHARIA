@@ -3,7 +3,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { 
   Plus, LayoutDashboard, HardHat, 
   Bell, Users, Cloud, CloudCheck, Loader2, RefreshCw, Database, Settings, X, Save, 
-  Link as LinkIcon, AlertCircle, ShieldCheck, Copy, Info, CheckCircle2, Terminal
+  Link as LinkIcon, AlertCircle, ShieldCheck, Copy, Info, CheckCircle2, Terminal, Smartphone, ChevronRight
 } from 'lucide-react';
 import { Project, Employee } from './types';
 import Dashboard from './components/Dashboard';
@@ -55,6 +55,7 @@ const App: React.FC = () => {
   const selectedProject = projects.find(p => p.id === selectedProjectId);
   const [isNewProjectModalOpen, setIsNewProjectModalOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [settingsTab, setSettingsTab] = useState<'supabase' | 'apk'>('supabase');
   const [isLoading, setIsLoading] = useState(true);
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncError, setSyncError] = useState<string | null>(null);
@@ -139,9 +140,9 @@ const App: React.FC = () => {
     }
   };
 
-  const copySQL = () => {
-    navigator.clipboard.writeText(SQL_INSTRUCTIONS);
-    alert("Código SQL copiado! Cole no SQL Editor do Supabase.");
+  const copyText = (text: string) => {
+    navigator.clipboard.writeText(text);
+    alert("Copiado!");
   };
 
   const addProject = (name: string, location: string) => {
@@ -236,7 +237,6 @@ const App: React.FC = () => {
         </nav>
 
         <div className="mt-auto pt-8 border-t border-slate-800 space-y-4">
-           {/* BOTÃO DA ENGRENAGEM (CONFIGURAÇÕES) NO DESKTOP */}
            <button 
              onClick={() => setIsSettingsOpen(true)}
              className={`w-full flex items-center justify-between p-4 rounded-2xl transition-all border-2 ${dbStatus.success ? 'bg-green-500/10 border-green-500/20 text-green-500' : 'bg-amber-500 text-slate-900 border-amber-400 animate-pulse shadow-lg shadow-amber-500/20'}`}
@@ -267,7 +267,6 @@ const App: React.FC = () => {
             {isSyncing && <div className="flex items-center gap-2 text-amber-500 animate-pulse"><Loader2 size={16} className="animate-spin" /><span className="text-[10px] font-black uppercase tracking-widest">Salvando...</span></div>}
             
             <div className="flex items-center gap-2">
-               {/* BOTÃO DA ENGRENAGEM (CONFIGURAÇÕES) NO MOBILE */}
                <button 
                  onClick={() => setIsSettingsOpen(true)}
                  className={`p-3 rounded-xl flex items-center gap-2 transition-all md:hidden ${dbStatus.success ? 'bg-slate-100 text-slate-500' : 'bg-amber-500 text-slate-900 animate-bounce shadow-lg shadow-amber-500/20'}`}
@@ -297,21 +296,8 @@ const App: React.FC = () => {
                  <h3 className="text-xl font-black text-slate-900 uppercase tracking-tighter">Quase lá! Faltam as tabelas no Supabase</h3>
                  <p className="text-slate-600 text-sm font-medium">Conectamos na sua URL, mas seu banco de dados está vazio. Clique no botão ao lado para copiar o script de criação e cole no <b>SQL Editor</b> do seu painel Supabase.</p>
                </div>
-               <button onClick={copySQL} className="bg-slate-900 text-white px-8 py-5 rounded-2xl font-black uppercase text-xs tracking-widest flex items-center gap-3 shadow-xl active:scale-95 transition-all">
+               <button onClick={() => copyText(SQL_INSTRUCTIONS)} className="bg-slate-900 text-white px-8 py-5 rounded-2xl font-black uppercase text-xs tracking-widest flex items-center gap-3 shadow-xl active:scale-95 transition-all">
                  <Copy size={20} /> COPIAR SCRIPT SQL
-               </button>
-            </div>
-          )}
-
-          {!dbStatus.success && dbStatus.code !== 'MISSING_TABLES' && currentView === 'dashboard' && (
-            <div className="mb-8 bg-slate-900 border-2 border-amber-500 rounded-[2rem] p-8 flex flex-col md:flex-row items-center gap-8 animate-in slide-in-from-top duration-500">
-               <div className="bg-amber-500 p-6 rounded-[2rem] text-slate-900"><Settings size={48} className="animate-spin-slow" /></div>
-               <div className="flex-1 space-y-2">
-                 <h3 className="text-xl font-black text-white uppercase tracking-tighter">Ativar Banco de Dados (Nuvem)</h3>
-                 <p className="text-slate-400 text-sm font-medium">Seus dados estão sendo salvos apenas localmente. Clique no botão de engrenagem abaixo ou no botão ao lado para conectar ao Supabase.</p>
-               </div>
-               <button onClick={() => setIsSettingsOpen(true)} className="bg-amber-500 text-slate-900 px-8 py-5 rounded-2xl font-black uppercase text-xs tracking-widest flex items-center gap-3 shadow-xl active:scale-95 transition-all">
-                 <Database size={20} /> CONECTAR AGORA
                </button>
             </div>
           )}
@@ -326,73 +312,130 @@ const App: React.FC = () => {
         </div>
       </main>
 
+      {/* MODAL DE CONFIGURAÇÕES MELHORADA COM GUIA APK */}
       {isSettingsOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-6">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6">
           <div className="absolute inset-0 bg-slate-900/80 backdrop-blur-xl" onClick={() => setIsSettingsOpen(false)} />
-          <div className="relative bg-white w-full max-w-xl rounded-[3rem] shadow-2xl overflow-hidden animate-in zoom-in duration-300">
-             <div className="bg-slate-900 p-10 flex items-center justify-between text-white">
+          <div className="relative bg-white w-full max-w-2xl rounded-[3rem] shadow-2xl overflow-hidden animate-in zoom-in duration-300 flex flex-col max-h-[90vh]">
+             <div className="bg-slate-900 p-8 flex items-center justify-between text-white shrink-0">
                 <div className="flex items-center gap-4">
                   <div className="bg-amber-500 p-3 rounded-2xl text-slate-900"><Settings size={24} /></div>
                   <div>
-                    <h2 className="text-2xl font-black uppercase tracking-tighter italic">Configuração do Banco</h2>
-                    <p className="text-slate-400 text-[10px] font-black uppercase tracking-widest">Sincronização via Supabase</p>
+                    <h2 className="text-2xl font-black uppercase tracking-tighter italic">Configurações</h2>
+                    <p className="text-slate-400 text-[10px] font-black uppercase tracking-widest">Banco e Exportação Mobile</p>
                   </div>
                 </div>
                 <button onClick={() => setIsSettingsOpen(false)} className="p-3 bg-white/10 rounded-full hover:bg-white/20 transition-all">
                   <X size={24} />
                 </button>
              </div>
+
+             {/* TABS CONFIGURAÇÕES */}
+             <div className="flex border-b border-slate-100 shrink-0">
+               <button 
+                 onClick={() => setSettingsTab('supabase')}
+                 className={`flex-1 py-5 text-[10px] font-black uppercase tracking-widest transition-all ${settingsTab === 'supabase' ? 'text-amber-500 border-b-4 border-amber-500 bg-amber-50/30' : 'text-slate-400 hover:bg-slate-50'}`}
+               >
+                 <div className="flex items-center justify-center gap-2"><Database size={16}/> Supabase (Nuvem)</div>
+               </button>
+               <button 
+                 onClick={() => setSettingsTab('apk')}
+                 className={`flex-1 py-5 text-[10px] font-black uppercase tracking-widest transition-all ${settingsTab === 'apk' ? 'text-amber-500 border-b-4 border-amber-500 bg-amber-50/30' : 'text-slate-400 hover:bg-slate-50'}`}
+               >
+                 <div className="flex items-center justify-center gap-2"><Smartphone size={16}/> Gerar APK Android</div>
+               </button>
+             </div>
              
-             <div className="p-10 space-y-8">
-                <div className="space-y-6">
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Project URL (Copie do Supabase)</label>
-                    <div className="relative group">
-                      <div className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-amber-500 transition-colors">
-                        <LinkIcon size={20} />
+             <div className="p-8 space-y-8 overflow-y-auto no-scrollbar">
+                {settingsTab === 'supabase' ? (
+                  <div className="space-y-6">
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Project URL</label>
+                      <div className="relative group">
+                        <div className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-amber-500 transition-colors">
+                          <LinkIcon size={20} />
+                        </div>
+                        <input 
+                          type="text"
+                          value={dbUrl}
+                          onChange={e => setDbUrl(e.target.value)}
+                          placeholder="https://xyz.supabase.co"
+                          className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl pl-16 pr-6 py-5 font-black text-sm outline-none focus:border-amber-500 focus:bg-white transition-all"
+                        />
                       </div>
-                      <input 
-                        type="text"
-                        value={dbUrl}
-                        onChange={e => setDbUrl(e.target.value)}
-                        placeholder="Ex: https://xyz.supabase.co"
-                        className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl pl-16 pr-6 py-5 font-black text-sm outline-none focus:border-amber-500 focus:bg-white transition-all"
-                      />
                     </div>
-                  </div>
 
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Anon Key (Public API Key)</label>
-                    <div className="relative group">
-                      <div className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-amber-500 transition-colors">
-                        <ShieldCheck size={20} />
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Anon Key</label>
+                      <div className="relative group">
+                        <div className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-amber-500 transition-colors">
+                          <ShieldCheck size={20} />
+                        </div>
+                        <input 
+                          type="password"
+                          value={dbKey}
+                          onChange={e => setDbKey(e.target.value)}
+                          placeholder="Public key..."
+                          className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl pl-16 pr-6 py-5 font-black text-sm outline-none focus:border-amber-500 focus:bg-white transition-all"
+                        />
                       </div>
-                      <input 
-                        type="password"
-                        value={dbKey}
-                        onChange={e => setDbKey(e.target.value)}
-                        placeholder="Cole sua chave aqui..."
-                        className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl pl-16 pr-6 py-5 font-black text-sm outline-none focus:border-amber-500 focus:bg-white transition-all"
-                      />
                     </div>
-                  </div>
-                </div>
 
-                {dbStatus.message && (
-                  <div className={`p-5 rounded-2xl flex items-center gap-4 border-2 ${dbStatus.success ? 'bg-green-50 border-green-100 text-green-700' : 'bg-amber-50 border-amber-100 text-amber-700'}`}>
-                    {dbStatus.success ? <CheckCircle2 size={24} /> : <AlertCircle size={24} />}
-                    <p className="text-xs font-black uppercase tracking-tight">{dbStatus.message}</p>
+                    {dbStatus.message && (
+                      <div className={`p-5 rounded-2xl flex items-center gap-4 border-2 ${dbStatus.success ? 'bg-green-50 border-green-100 text-green-700' : 'bg-amber-50 border-amber-100 text-amber-700'}`}>
+                        {dbStatus.success ? <CheckCircle2 size={24} /> : <AlertCircle size={24} />}
+                        <p className="text-xs font-black uppercase tracking-tight">{dbStatus.message}</p>
+                      </div>
+                    )}
+
+                    <button 
+                      onClick={handleSaveConfig}
+                      className="w-full bg-slate-900 text-white font-black py-6 rounded-2xl shadow-xl flex items-center justify-center gap-3 uppercase text-xs tracking-[0.2em] active:scale-95 transition-all hover:bg-slate-800"
+                    >
+                      <Save size={22} className="text-amber-500" /> SALVAR CONFIGURAÇÃO
+                    </button>
+                  </div>
+                ) : (
+                  <div className="space-y-6">
+                    <div className="bg-slate-50 p-6 rounded-3xl border border-slate-200">
+                      <h4 className="text-sm font-black text-slate-900 uppercase tracking-widest flex items-center gap-2 mb-4">
+                        <Terminal size={18} className="text-amber-500" /> 
+                        O que é a "Sincronização"?
+                      </h4>
+                      <p className="text-xs text-slate-600 font-medium leading-relaxed">
+                        O Android Studio cria o arquivo instalável (APK), mas ele não "vê" o seu código React automaticamente. Você precisa rodar o comando abaixo para copiar os arquivos atualizados para a pasta do Android sempre que fizer uma alteração.
+                      </p>
+                    </div>
+
+                    <div className="space-y-4">
+                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Passo 1: Sincronizar Código Web</p>
+                      <div className="bg-slate-900 p-5 rounded-2xl flex items-center justify-between group">
+                        <code className="text-amber-500 font-mono text-xs">npx cap copy</code>
+                        <button onClick={() => copyText('npx cap copy')} className="text-slate-500 hover:text-white transition-colors">
+                          <Copy size={18} />
+                        </button>
+                      </div>
+
+                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Passo 2: Abrir Android Studio</p>
+                      <div className="bg-slate-900 p-5 rounded-2xl flex items-center justify-between group">
+                        <code className="text-amber-500 font-mono text-xs">npx cap open android</code>
+                        <button onClick={() => copyText('npx cap open android')} className="text-slate-500 hover:text-white transition-colors">
+                          <Copy size={18} />
+                        </button>
+                      </div>
+
+                      <div className="bg-amber-100 p-6 rounded-3xl border-2 border-amber-200 flex items-start gap-4">
+                        <Info size={24} className="text-amber-600 shrink-0" />
+                        <div>
+                          <p className="text-xs font-black text-amber-900 uppercase mb-1">DICA PARA O APK FINAL</p>
+                          <p className="text-[11px] text-amber-800 font-medium leading-tight">
+                            Dentro do Android Studio, vá em <b>Build > Build Bundle(s) / APK(s) > Build APK(s)</b>. Aguarde alguns segundos e clique em "Locate" para pegar o arquivo pronto!
+                          </p>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 )}
-
-                <div className="flex flex-col gap-4">
-                  <button 
-                    onClick={handleSaveConfig}
-                    className="w-full bg-slate-900 text-white font-black py-6 rounded-2xl shadow-xl shadow-slate-200 flex items-center justify-center gap-3 uppercase text-xs tracking-[0.2em] active:scale-95 transition-all hover:bg-slate-800"
-                  >
-                    <Save size={22} className="text-amber-500" /> SALVAR E CONECTAR
-                  </button>
-                </div>
              </div>
           </div>
         </div>

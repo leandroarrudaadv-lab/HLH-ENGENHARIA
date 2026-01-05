@@ -1,0 +1,22 @@
+
+{
+  "name": "HLH Engenharia - Gestão de Obras",
+  "short_name": "HLH Obras",
+  "description": "Sistema de gestão de obras e colaboradores HLH.",
+  "start_url": "index.html",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#f59e0b",
+  "icons": [
+    {
+      "src": "https://api.dicebear.com/7.x/shapes/svg?seed=HLH&backgroundColor=f59e0b",
+      "sizes": "192x192",
+      "type": "image/svg+xml"
+    },
+    {
+      "src": "https://api.dicebear.com/7.x/shapes/svg?seed=HLH&backgroundColor=f59e0b",
+      "sizes": "512x512",
+      "type": "image/svg+xml"
+    }
+  ]
+}
