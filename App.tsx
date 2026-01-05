@@ -319,7 +319,8 @@ const App: React.FC = () => {
                       </div>
                     </div>
                     <div className="space-y-4">
-                      <Step title="Sincronização" command="npx cap copy" onCopy={copyText} />
+                      <Step title="Instalação" command="npm install" onCopy={copyText} />
+                      <Step title="Sincronização" command="npm run build && npx cap sync" onCopy={copyText} />
                     </div>
                   </div>
                 )}
