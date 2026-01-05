@@ -12,8 +12,6 @@ import NewProjectModal from './components/NewProjectModal';
 import EmployeeManagement from './components/EmployeeManagement';
 import { DatabaseService } from './services/databaseService';
 
-const APP_VERSION = "1.0.2";
-
 const App: React.FC = () => {
   const [projects, setProjects] = useState<Project[]>([]);
   const [globalEmployees, setGlobalEmployees] = useState<Employee[]>([]);
@@ -36,24 +34,29 @@ const App: React.FC = () => {
     return projects.filter(p => p.name.toLowerCase().includes(sidebarSearch.toLowerCase()));
   }, [projects, sidebarSearch]);
 
-  const loadInitialData = useCallback(async () => {
+  const loadInitialData = useCallback(async (forceCloud = false) => {
     setIsLoading(true);
     try {
       if (DatabaseService.isConfigured()) {
         const test = await DatabaseService.testConnection();
         setDbStatus(test);
+        
         if (test.success) {
           const [loadedProjects, loadedEmployees] = await Promise.all([
             DatabaseService.getProjects(),
             DatabaseService.getEmployees()
           ]);
-          setProjects(loadedProjects);
-          setGlobalEmployees(loadedEmployees);
-          setIsLoading(false);
-          return;
+          
+          if (forceCloud || loadedProjects.length > 0) {
+            setProjects(loadedProjects);
+            setGlobalEmployees(loadedEmployees);
+            setIsLoading(false);
+            return;
+          }
         }
       }
       
+      // Fallback para local se não houver nuvem ou se a nuvem estiver vazia
       const lp = localStorage.getItem('hlh_projects_cloud_v1') ? JSON.parse(localStorage.getItem('hlh_projects_cloud_v1')!) : [];
       const le = localStorage.getItem('hlh_employees_cloud_v1') ? JSON.parse(localStorage.getItem('hlh_employees_cloud_v1')!) : [];
       setProjects(lp);
@@ -76,32 +79,37 @@ const App: React.FC = () => {
   }, [loadInitialData]);
 
   useEffect(() => {
-    localStorage.setItem('hlh_company_name', companyName);
-  }, [companyName]);
-
-  useEffect(() => {
-    if (isLoading || !DatabaseService.isConfigured() || dbStatus.code === 'MISSING_TABLES') {
-      localStorage.setItem('hlh_projects_cloud_v1', JSON.stringify(projects));
-      localStorage.setItem('hlh_employees_cloud_v1', JSON.stringify(globalEmployees));
-      return;
-    }
+    if (isLoading) return;
     
-    const syncData = async () => {
-      setIsSyncing(true);
-      try {
-        await Promise.all([
-          DatabaseService.saveProjects(projects),
-          DatabaseService.saveEmployees(globalEmployees)
-        ]);
-      } catch (error: any) {
-        console.error("Erro na sincronização:", error);
-      } finally {
-        setTimeout(() => setIsSyncing(false), 500);
-      }
-    };
-    const timer = setTimeout(syncData, 2000);
-    return () => clearTimeout(timer);
-  }, [projects, globalEmployees, isLoading, dbStatus.code]);
+    // Salva local sempre
+    localStorage.setItem('hlh_projects_cloud_v1', JSON.stringify(projects));
+    localStorage.setItem('hlh_employees_cloud_v1', JSON.stringify(globalEmployees));
+
+    // Se estiver conectado, tenta sincronizar com a nuvem após 2 segundos de inatividade
+    if (DatabaseService.isConfigured() && dbStatus.success) {
+      const syncData = async () => {
+        setIsSyncing(true);
+        try {
+          await Promise.all([
+            DatabaseService.saveProjects(projects),
+            DatabaseService.saveEmployees(globalEmployees)
+          ]);
+        } catch (error: any) {
+          console.error("Erro na sincronização:", error);
+        } finally {
+          setTimeout(() => setIsSyncing(false), 800);
+        }
+      };
+      const timer = setTimeout(syncData, 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [projects, globalEmployees, isLoading, dbStatus.success]);
+
+  const handleManualSync = async () => {
+    setIsSyncing(true);
+    await loadInitialData(true);
+    setIsSyncing(false);
+  };
 
   const handleSaveConfig = async () => {
     DatabaseService.saveConfig(dbUrl, dbKey);
@@ -109,19 +117,13 @@ const App: React.FC = () => {
     setDbStatus(test);
     if (test.success) {
       setSettingsTab('geral');
-      loadInitialData();
+      loadInitialData(true);
     }
   };
 
   const copyText = (text: string) => {
     navigator.clipboard.writeText(text);
     alert("Copiado!");
-  };
-
-  const handleForceReload = () => {
-    if(confirm("Deseja recarregar o app para aplicar mudanças?")) {
-      window.location.reload();
-    }
   };
 
   const addProject = (name: string, location: string) => {
@@ -144,50 +146,6 @@ const App: React.FC = () => {
     setCurrentView('dashboard');
   };
 
-  const updateProject = (updated: Project) => {
-    setProjects(prev => prev.map(p => p.id === updated.id ? updated : p));
-  };
-
-  const deleteProject = (id: string) => {
-    if (window.confirm(`EXCLUIR OBRA?`)) {
-      setProjects(prev => prev.filter(p => p.id !== id));
-      if (selectedProjectId === id) setCurrentView('dashboard');
-    }
-  };
-
-  const supabaseSqlScript = `
--- TABELAS HLH ENGENHARIA
-create table if not exists projects (
-  id text primary key,
-  name text not null,
-  status text,
-  location text,
-  progress int,
-  mainPhoto text,
-  employees jsonb default '[]',
-  reports jsonb default '[]',
-  purchases jsonb default '[]',
-  photos jsonb default '[]',
-  presence jsonb default '[]',
-  contracts jsonb default '[]',
-  documents jsonb default '[]',
-  created_at timestamp with time zone default timezone('utc'::text, now())
-);
-
-create table if not exists employees (
-  id text primary key,
-  name text not null,
-  role text,
-  active boolean default true,
-  dailyRate numeric,
-  projectId text,
-  created_at timestamp with time zone default timezone('utc'::text, now())
-);
-
-alter table projects disable row level security;
-alter table employees disable row level security;
-  `;
-
   if (isLoading) {
     return (
       <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center gap-6">
@@ -196,7 +154,7 @@ alter table employees disable row level security;
         </div>
         <h2 className="text-2xl font-black text-white uppercase tracking-tighter italic">{companyName}</h2>
         <div className="flex items-center gap-3 text-amber-500/50 font-black text-xs uppercase tracking-widest">
-          <Loader2 size={16} className="animate-spin" /> v{APP_VERSION}
+          <Loader2 size={16} className="animate-spin" /> Conectando...
         </div>
       </div>
     );
@@ -221,7 +179,7 @@ alter table employees disable row level security;
           <SideButton active={currentView === 'employees'} onClick={() => {setCurrentView('employees'); setSelectedProjectId(null);}} icon={<Users size={20}/>} label="COLABORADORES" />
           
           <div className="pt-8 flex-1 flex flex-col min-h-0">
-            <p className="text-[10px] text-slate-500 font-black uppercase px-4 mb-4 tracking-widest">Buscar Obra</p>
+            <p className="text-[10px] text-slate-500 font-black uppercase px-4 mb-4 tracking-widest">Filtrar Obras</p>
             <div className="px-4 mb-4">
               <div className="relative">
                 <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-600" />
@@ -229,7 +187,7 @@ alter table employees disable row level security;
                   type="text" 
                   value={sidebarSearch}
                   onChange={e => setSidebarSearch(e.target.value)}
-                  placeholder="FILTRAR..."
+                  placeholder="BUSCAR..."
                   className="w-full bg-slate-800/50 border border-slate-700 rounded-xl pl-9 pr-3 py-2 text-[10px] font-black uppercase outline-none focus:border-amber-500 transition-all placeholder:text-slate-700"
                 />
               </div>
@@ -256,7 +214,7 @@ alter table employees disable row level security;
            >
              <div className="flex items-center gap-3">
                {dbStatus.success ? <CloudCheck size={20} /> : <Database size={20} />}
-               <span className="text-[10px] font-black uppercase tracking-widest">{dbStatus.success ? 'Nuvem Ativa' : 'CONECTAR'}</span>
+               <span className="text-[10px] font-black uppercase tracking-widest">{dbStatus.success ? 'NUVEM ATIVA' : 'CONFIGURAR'}</span>
              </div>
              <Settings size={16} />
            </button>
@@ -270,22 +228,30 @@ alter table employees disable row level security;
                <Building2 size={20} className="text-amber-500" />
             </div>
             <div className="flex flex-col">
-              <h2 className="text-lg md:text-2xl font-black text-slate-900 uppercase tracking-tighter italic truncate max-w-[200px] md:max-w-none leading-none">
+              <h2 className="text-lg md:text-2xl font-black text-slate-900 uppercase tracking-tighter italic truncate max-w-[150px] md:max-w-none leading-none">
                 {currentView === 'dashboard' ? 'Todas as Obras' : 
                  currentView === 'employees' ? 'Equipe' : 
                  selectedProject?.name}
               </h2>
-              <span className="md:hidden text-[9px] font-black text-slate-400 uppercase tracking-widest">{companyName}</span>
+              {dbStatus.success ? (
+                <span className="text-[8px] font-black text-green-600 uppercase tracking-widest mt-1 flex items-center gap-1">
+                   <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" /> Sincronizado com Nuvem
+                </span>
+              ) : (
+                <span className="text-[8px] font-black text-amber-600 uppercase tracking-widest mt-1 flex items-center gap-1">
+                   <AlertTriangle size={8} /> Modo Local (Offline)
+                </span>
+              )}
             </div>
           </div>
 
           <div className="flex items-center gap-3">
-            {isSyncing && (
-              <div className="flex items-center gap-2 px-3 py-1 bg-amber-50 rounded-full border border-amber-100">
-                <Loader2 size={12} className="text-amber-500 animate-spin" />
-                <span className="text-[8px] font-black text-amber-600 uppercase tracking-widest">Sincronizando</span>
-              </div>
-            )}
+            <button 
+              onClick={handleManualSync}
+              className={`p-3 rounded-xl border-2 transition-all ${isSyncing ? 'bg-amber-100 border-amber-300 text-amber-600' : 'bg-white border-slate-100 text-slate-400 hover:text-amber-500 shadow-sm'}`}
+            >
+              <RefreshCw size={18} className={isSyncing ? 'animate-spin' : ''} />
+            </button>
             {currentView === 'dashboard' && (
               <button 
                 onClick={() => setIsNewProjectModalOpen(true)}
@@ -298,23 +264,12 @@ alter table employees disable row level security;
         </header>
 
         <div className="p-4 md:p-8">
-          {dbStatus.code === 'MISSING_TABLES' && (
-             <div className="mb-8 p-6 bg-amber-50 border-2 border-dashed border-amber-200 rounded-[2rem] flex flex-col md:flex-row items-center gap-6">
-                <div className="bg-amber-500 p-4 rounded-2xl text-slate-900"><AlertTriangle size={32} /></div>
-                <div className="flex-1 text-center md:text-left">
-                   <h4 className="text-sm font-black text-amber-900 uppercase tracking-widest mb-1">Configuração Incompleta</h4>
-                   <p className="text-[11px] text-amber-700 font-medium">As tabelas não foram encontradas no Supabase. O app está rodando apenas no celular (offline).</p>
-                </div>
-                <button onClick={() => {setIsSettingsOpen(true); setSettingsTab('sql');}} className="bg-slate-900 text-white px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg">RESOLVER AGORA</button>
-             </div>
-          )}
-
           {currentView === 'project' && selectedProject ? (
-            <ProjectDetail project={selectedProject} onUpdate={updateProject} onDelete={() => deleteProject(selectedProject.id)} onBack={() => setCurrentView('dashboard')} />
+            <ProjectDetail project={selectedProject} onUpdate={(u) => setProjects(prev => prev.map(p => p.id === u.id ? u : p))} onDelete={() => {setProjects(prev => prev.filter(p => p.id !== selectedProjectId)); setCurrentView('dashboard');}} onBack={() => setCurrentView('dashboard')} />
           ) : currentView === 'employees' ? (
             <EmployeeManagement employees={globalEmployees} setEmployees={setGlobalEmployees} projects={projects} onUpdateProjects={setProjects} />
           ) : (
-            <Dashboard projects={projects} onSelect={(id) => {setSelectedProjectId(id); setCurrentView('project');}} onDeleteProject={deleteProject} />
+            <Dashboard projects={projects} onSelect={(id) => {setSelectedProjectId(id); setCurrentView('project');}} onDeleteProject={(id) => setProjects(prev => prev.filter(p => p.id !== id))} />
           )}
         </div>
       </main>
@@ -322,16 +277,9 @@ alter table employees disable row level security;
       {/* Mobile Tab Bar */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 px-6 py-3 flex items-center justify-between z-[60] shadow-[0_-4px_10px_rgba(0,0,0,0.05)] safe-pb">
         <BottomTab active={currentView === 'dashboard'} onClick={() => {setCurrentView('dashboard'); setSelectedProjectId(null);}} icon={<Home size={22}/>} label="Home" />
-        <BottomTab active={currentView === 'project'} onClick={() => {
-          if (projects.length > 0) {
-            setSelectedProjectId(projects[0].id);
-            setCurrentView('project');
-          } else {
-            setCurrentView('dashboard');
-          }
-        }} icon={<Briefcase size={22}/>} label="Obras" />
+        <BottomTab active={currentView === 'project'} onClick={() => {if (projects.length > 0) { setSelectedProjectId(projects[0].id); setCurrentView('project'); } else { setCurrentView('dashboard'); }}} icon={<Briefcase size={22}/>} label="Obras" />
         <BottomTab active={currentView === 'employees'} onClick={() => {setCurrentView('employees'); setSelectedProjectId(null);}} icon={<Users size={22}/>} label="Equipe" />
-        <BottomTab active={isSettingsOpen} onClick={() => setIsSettingsOpen(true)} icon={<Settings size={22}/>} label="Config" />
+        <BottomTab active={isSettingsOpen} onClick={() => setIsSettingsOpen(true)} icon={<Settings size={22}/>} label="Ajustes" />
       </nav>
 
       {isSettingsOpen && (
@@ -341,37 +289,30 @@ alter table employees disable row level security;
              <div className="bg-slate-900 p-6 md:p-8 flex items-center justify-between text-white">
                 <div className="flex items-center gap-4">
                   <div className="bg-amber-500 p-3 rounded-2xl text-slate-900"><Settings size={24} /></div>
-                  <h2 className="text-xl md:text-2xl font-black uppercase tracking-tighter italic">Ajustes</h2>
+                  <h2 className="text-xl md:text-2xl font-black uppercase tracking-tighter italic">Configurações</h2>
                 </div>
-                <div className="flex items-center gap-2">
-                   <button onClick={handleForceReload} className="p-2 bg-white/10 rounded-full text-amber-500" title="Recarregar App"><RefreshCw size={20} /></button>
-                   <button onClick={() => setIsSettingsOpen(false)} className="p-2 bg-white/10 rounded-full"><X size={24} /></button>
-                </div>
+                <button onClick={() => setIsSettingsOpen(false)} className="p-2 bg-white/10 rounded-full"><X size={24} /></button>
              </div>
 
              <div className="flex border-b border-slate-100 overflow-x-auto no-scrollbar">
                <button onClick={() => setSettingsTab('geral')} className={`flex-1 py-4 px-4 whitespace-nowrap text-[10px] font-black uppercase tracking-widest ${settingsTab === 'geral' ? 'text-amber-500 border-b-4 border-amber-500 bg-amber-50/20' : 'text-slate-400'}`}>GERAL</button>
                <button onClick={() => setSettingsTab('supabase')} className={`flex-1 py-4 px-4 whitespace-nowrap text-[10px] font-black uppercase tracking-widest ${settingsTab === 'supabase' ? 'text-amber-500 border-b-4 border-amber-500 bg-amber-50/20' : 'text-slate-400'}`}>CONEXÃO</button>
                <button onClick={() => setSettingsTab('sql')} className={`flex-1 py-4 px-4 whitespace-nowrap text-[10px] font-black uppercase tracking-widest ${settingsTab === 'sql' ? 'text-amber-500 border-b-4 border-amber-500 bg-amber-50/20' : 'text-slate-400'}`}>SQL SETUP</button>
-               <button onClick={() => setSettingsTab('apk')} className={`flex-1 py-4 px-4 whitespace-nowrap text-[10px] font-black uppercase tracking-widest ${settingsTab === 'apk' ? 'text-amber-500 border-b-4 border-amber-500 bg-amber-50/20' : 'text-slate-400'}`}>REBUILD</button>
+               <button onClick={() => setSettingsTab('apk')} className={`flex-1 py-4 px-4 whitespace-nowrap text-[10px] font-black uppercase tracking-widest ${settingsTab === 'apk' ? 'text-amber-500 border-b-4 border-amber-500 bg-amber-50/20' : 'text-slate-400'}`}>GERAR APK</button>
              </div>
              
              <div className="p-6 md:p-8 overflow-y-auto no-scrollbar space-y-6">
                 {settingsTab === 'geral' ? (
                   <div className="space-y-6">
-                    <InputField label="Nome da Construtora" value={companyName} onChange={v => setCompanyName(v.toUpperCase())} icon={<Building2 size={20}/>} placeholder="MINHA CONSTRUTORA LTDA" />
-                    <div className="p-5 bg-blue-50 border border-blue-100 rounded-3xl flex items-start gap-4">
-                       <Info size={20} className="text-blue-500 shrink-0 mt-1" />
-                       <p className="text-[11px] font-medium text-blue-800 leading-relaxed">Os dados são sincronizados automaticamente entre todos os dispositivos conectados.</p>
-                    </div>
+                    <InputField label="Nome da Empresa" value={companyName} onChange={v => setCompanyName(v.toUpperCase())} icon={<Building2 size={20}/>} placeholder="HLH ENGENHARIA" />
                   </div>
                 ) : settingsTab === 'supabase' ? (
                   <div className="space-y-6">
                     <InputField label="Supabase URL" value={dbUrl} onChange={setDbUrl} icon={<LinkIcon size={20}/>} placeholder="https://..." />
-                    <InputField label="Supabase Key" value={dbKey} onChange={setDbKey} icon={<ShieldCheck size={20}/>} placeholder="Public Anon Key..." isPassword />
-                    <button onClick={handleSaveConfig} className="w-full bg-slate-900 text-white font-black py-5 rounded-2xl flex items-center justify-center gap-3 uppercase text-xs tracking-widest shadow-xl"><Save size={20} className="text-amber-500"/> CONECTAR NUVEM</button>
+                    <InputField label="Supabase Anon Key" value={dbKey} onChange={setDbKey} icon={<ShieldCheck size={20}/>} placeholder="Sua chave..." isPassword />
+                    <button onClick={handleSaveConfig} className="w-full bg-slate-900 text-white font-black py-5 rounded-2xl flex items-center justify-center gap-3 uppercase text-xs tracking-widest shadow-xl"><Save size={20} className="text-amber-500"/> SALVAR E CONECTAR</button>
                     {dbStatus.message && (
-                      <div className={`p-4 rounded-2xl text-[10px] font-black uppercase text-center ${dbStatus.success ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                      <div className={`p-4 rounded-2xl text-[10px] font-black uppercase text-center border-2 ${dbStatus.success ? 'bg-green-100 border-green-200 text-green-700' : 'bg-red-100 border-red-200 text-red-700'}`}>
                         {dbStatus.message}
                       </div>
                     )}
@@ -379,47 +320,26 @@ alter table employees disable row level security;
                 ) : settingsTab === 'sql' ? (
                   <div className="space-y-6">
                     <div className="bg-amber-50 p-6 rounded-[2rem] border border-amber-200">
-                      <div className="flex items-center gap-3 mb-4 text-amber-600">
-                        <Terminal size={24} />
-                        <h4 className="text-sm font-black uppercase tracking-widest">Script do Banco</h4>
-                      </div>
-                      <p className="text-[11px] text-amber-800 leading-relaxed mb-6 font-medium font-bold">
-                        EXECUTE ISTO NO SUPABASE PARA ATIVAR O PREVIEW:
-                      </p>
-                      <div className="relative group">
-                        <pre className="bg-slate-900 text-amber-400 p-5 rounded-2xl text-[9px] font-mono overflow-x-auto max-h-[200px] border-2 border-slate-800">
-                          {supabaseSqlScript}
-                        </pre>
-                        <button 
-                          onClick={() => copyText(supabaseSqlScript)}
-                          className="absolute top-4 right-4 bg-amber-500 text-slate-900 p-2 rounded-xl shadow-lg hover:scale-110 transition-all"
-                        >
-                          <Copy size={16} />
-                        </button>
-                      </div>
+                      <p className="text-[11px] text-amber-800 leading-relaxed mb-6 font-medium">Copie e rode este SQL no seu painel do Supabase para criar as tabelas:</p>
+                      <pre className="bg-slate-900 text-amber-400 p-5 rounded-2xl text-[9px] font-mono overflow-x-auto max-h-[150px] border-2 border-slate-800 mb-4">
+                        {`create table if not exists projects (id text primary key, name text, status text, location text, progress int, mainPhoto text, employees jsonb default '[]', reports jsonb default '[]', purchases jsonb default '[]', photos jsonb default '[]', presence jsonb default '[]', contracts jsonb default '[]', documents jsonb default '[]', created_at timestamp with time zone default now()); \n\n create table if not exists employees (id text primary key, name text, role text, active boolean default true, dailyRate numeric, projectId text, created_at timestamp with time zone default now()); \n\n alter table projects disable row level security; alter table employees disable row level security;`}
+                      </pre>
+                      <button onClick={() => copyText(`create table if not exists projects (id text primary key, name text, status text, location text, progress int, mainPhoto text, employees jsonb default '[]', reports jsonb default '[]', purchases jsonb default '[]', photos jsonb default '[]', presence jsonb default '[]', contracts jsonb default '[]', documents jsonb default '[]', created_at timestamp with time zone default now()); create table if not exists employees (id text primary key, name text, role text, active boolean default true, dailyRate numeric, projectId text, created_at timestamp with time zone default now()); alter table projects disable row level security; alter table employees disable row level security;`)} className="w-full bg-slate-900 text-amber-500 font-black py-4 rounded-xl uppercase text-[10px] tracking-widest flex items-center justify-center gap-2 shadow-lg"><Copy size={16} /> COPIAR SQL</button>
                     </div>
                   </div>
                 ) : (
                   <div className="space-y-8 pb-10">
                     <div className="bg-slate-900 p-6 rounded-[2rem] text-white border-2 border-amber-500/30">
-                      <div className="flex items-center gap-4 mb-4">
-                        <div className="p-3 bg-amber-500 rounded-2xl text-slate-900"><Play size={24} fill="currentColor"/></div>
-                        <h4 className="text-lg font-black uppercase tracking-tighter italic">Fluxo de Atualização</h4>
-                      </div>
+                      <h4 className="text-lg font-black uppercase tracking-tighter italic mb-4">Para atualizar o APK no celular:</h4>
                       <div className="space-y-4">
-                        <AndroidStep number="1" icon={<FolderOpen size={18}/>} text="No PowerShell: npm run build e npx cap sync" />
-                        <AndroidStep number="2" icon={<RefreshCw size={18} />} text="No Android Studio: Build > Clean Project (MUITO IMPORTANTE!)" />
-                        <AndroidStep number="3" icon={<Package size={18}/>} text="No Android Studio: Build > Build APK(s)." />
-                        <AndroidStep number="4" icon={<CheckCircle2 size={18}/>} text="Desinstale o app antigo do celular antes de colocar o novo." />
+                        <AndroidStep number="1" text="No Computador: Rode 'npm run build' e 'npx cap sync'." />
+                        <AndroidStep number="2" text="No Android Studio: Clique em Build > Build APK(s)." />
+                        <AndroidStep number="3" text="O APK gerado na pasta será a versão atualizada. Instale-o no celular." />
+                        <AndroidStep number="4" text="Dica: Desinstale a versão antiga do celular para garantir a atualização." />
                       </div>
                     </div>
                   </div>
                 )}
-                
-                <div className="pt-6 border-t border-slate-100 flex justify-between items-center opacity-40">
-                   <span className="text-[9px] font-black uppercase tracking-widest">Build v{APP_VERSION}</span>
-                   <span className="text-[9px] font-black uppercase tracking-widest">HLH Engenharia Digital</span>
-                </div>
              </div>
           </div>
         </div>
@@ -430,13 +350,10 @@ alter table employees disable row level security;
   );
 };
 
-const AndroidStep: React.FC<{number: string, icon: React.ReactNode, text: string}> = ({ number, icon, text }) => (
+const AndroidStep: React.FC<{number: string, text: string}> = ({ number, text }) => (
   <div className="flex gap-4 items-start">
     <div className="w-6 h-6 rounded-full bg-amber-500 text-slate-900 flex items-center justify-center text-[10px] font-black shrink-0 mt-0.5">{number}</div>
-    <div className="flex items-start gap-3">
-      <div className="text-amber-500/50 mt-1">{icon}</div>
-      <p className="text-[11px] font-medium leading-relaxed text-slate-300">{text}</p>
-    </div>
+    <p className="text-[11px] font-medium leading-relaxed text-slate-300">{text}</p>
   </div>
 );
 
