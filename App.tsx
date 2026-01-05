@@ -3,7 +3,8 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { 
   Plus, LayoutDashboard, HardHat, 
   Users, CloudCheck, Loader2, Database, Settings, X, Save, 
-  Link as LinkIcon, AlertCircle, ShieldCheck, Copy, Info, CheckCircle2, Terminal, Smartphone, Search
+  Link as LinkIcon, AlertCircle, ShieldCheck, Copy, Info, CheckCircle2, Terminal, Smartphone, Search,
+  Briefcase, Home, Menu
 } from 'lucide-react';
 import { Project, Employee } from './types';
 import Dashboard from './components/Dashboard';
@@ -46,7 +47,7 @@ CREATE POLICY "Public Access" ON employees FOR ALL USING (true) WITH CHECK (true
 const App: React.FC = () => {
   const [projects, setProjects] = useState<Project[]>([]);
   const [globalEmployees, setGlobalEmployees] = useState<Employee[]>([]);
-  const [currentView, setCurrentView] = useState<'dashboard' | 'employees' | 'project'>('dashboard');
+  const [currentView, setCurrentView] = useState<'dashboard' | 'employees' | 'project' | 'settings'>('dashboard');
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const selectedProject = projects.find(p => p.id === selectedProjectId);
   const [isNewProjectModalOpen, setIsNewProjectModalOpen] = useState(false);
@@ -175,16 +176,17 @@ const App: React.FC = () => {
         </div>
         <h2 className="text-2xl font-black text-white uppercase tracking-tighter italic">HLH ENGENHARIA</h2>
         <div className="flex items-center gap-3 text-amber-500/50 font-black text-xs uppercase tracking-widest">
-          <Loader2 size={16} className="animate-spin" /> Carregando Obras...
+          <Loader2 size={16} className="animate-spin" /> Sincronizando...
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-slate-100 flex flex-col md:flex-row font-['Inter']">
+    <div className="min-h-screen bg-slate-100 flex flex-col md:flex-row font-['Inter'] pb-20 md:pb-0">
+      {/* Sidebar - Desktop Only */}
       <aside className="hidden md:flex flex-col w-80 bg-slate-900 text-white p-8 sticky top-0 h-screen shadow-2xl z-40 overflow-hidden">
-        <div className="mb-10 flex items-center gap-4 cursor-pointer" onClick={() => setCurrentView('dashboard')}>
+        <div className="mb-10 flex items-center gap-4 cursor-pointer" onClick={() => {setCurrentView('dashboard'); setSelectedProjectId(null);}}>
           <div className="bg-amber-500 p-3 rounded-2xl shadow-lg shadow-amber-500/20">
             <HardHat className="text-slate-900" size={32} />
           </div>
@@ -241,34 +243,34 @@ const App: React.FC = () => {
         </div>
       </aside>
 
-      <main className="flex-1 flex flex-col min-w-0 h-screen overflow-y-auto">
-        <header className="bg-white/90 backdrop-blur-xl border-b border-slate-200 px-8 py-6 flex items-center justify-between sticky top-0 z-30 shadow-sm">
-          <div className="flex items-center gap-4">
-            <div className="md:hidden bg-amber-500 p-2 rounded-xl" onClick={() => setCurrentView('dashboard')}>
-               <HardHat size={24} className="text-slate-900" />
+      {/* Main Content */}
+      <main className="flex-1 flex flex-col min-w-0 h-screen overflow-y-auto relative">
+        <header className="bg-white/95 backdrop-blur-xl border-b border-slate-200 px-6 py-5 flex items-center justify-between sticky top-0 z-30 shadow-sm">
+          <div className="flex items-center gap-3">
+            <div className="md:hidden bg-amber-500 p-2 rounded-xl">
+               <HardHat size={20} className="text-slate-900" />
             </div>
-            <h2 className="text-2xl font-black text-slate-900 uppercase tracking-tighter italic">
-              {currentView === 'dashboard' ? 'Centro de Operações' : 
-               currentView === 'employees' ? 'Gestão de Colaboradores' : 
+            <h2 className="text-lg md:text-2xl font-black text-slate-900 uppercase tracking-tighter italic truncate max-w-[200px] md:max-w-none">
+              {currentView === 'dashboard' ? 'Painel Geral' : 
+               currentView === 'employees' ? 'Colaboradores' : 
                selectedProject?.name}
             </h2>
           </div>
 
-          <div className="flex items-center gap-4">
-            {isSyncing && <div className="flex items-center gap-2 text-amber-600 animate-pulse"><Loader2 size={14} className="animate-spin" /><span className="text-[10px] font-black uppercase tracking-widest hidden sm:inline">Salvando...</span></div>}
-            <button onClick={() => setIsSettingsOpen(true)} className="md:hidden p-3 bg-slate-100 text-slate-500 rounded-xl"><Settings size={20}/></button>
+          <div className="flex items-center gap-3">
+            {isSyncing && <Loader2 size={16} className="text-amber-500 animate-spin" />}
             {currentView === 'dashboard' && (
               <button 
                 onClick={() => setIsNewProjectModalOpen(true)}
-                className="bg-slate-900 text-white font-black px-6 py-4 rounded-2xl flex items-center gap-3 transition-all active:scale-95 shadow-xl text-xs tracking-widest hover:bg-slate-800"
+                className="bg-slate-900 text-white font-black px-4 py-3 rounded-xl flex items-center gap-2 transition-all active:scale-95 shadow-lg text-[10px] tracking-widest hover:bg-slate-800"
               >
-                <Plus size={20} /> <span className="hidden sm:inline">NOVA OBRA</span>
+                <Plus size={16} /> <span className="hidden sm:inline">NOVA OBRA</span>
               </button>
             )}
           </div>
         </header>
 
-        <div className="p-8 pb-24">
+        <div className="p-4 md:p-8">
           {currentView === 'project' && selectedProject ? (
             <ProjectDetail project={selectedProject} onUpdate={updateProject} onDelete={() => deleteProject(selectedProject.id)} onBack={() => setCurrentView('dashboard')} />
           ) : currentView === 'employees' ? (
@@ -279,14 +281,30 @@ const App: React.FC = () => {
         </div>
       </main>
 
+      {/* Bottom Navigation - Mobile Only */}
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 px-6 py-3 flex items-center justify-between z-[60] shadow-[0_-4px_10px_rgba(0,0,0,0.05)]">
+        <BottomTab active={currentView === 'dashboard'} onClick={() => {setCurrentView('dashboard'); setSelectedProjectId(null);}} icon={<Home size={22}/>} label="Home" />
+        <BottomTab active={currentView === 'project'} onClick={() => {
+          if (projects.length > 0) {
+            setSelectedProjectId(projects[0].id);
+            setCurrentView('project');
+          } else {
+            setCurrentView('dashboard');
+          }
+        }} icon={<Briefcase size={22}/>} label="Obras" />
+        <BottomTab active={currentView === 'employees'} onClick={() => {setCurrentView('employees'); setSelectedProjectId(null);}} icon={<Users size={22}/>} label="Equipe" />
+        <BottomTab active={isSettingsOpen} onClick={() => setIsSettingsOpen(true)} icon={<Settings size={22}/>} label="Ajustes" />
+      </nav>
+
+      {/* Settings Modal */}
       {isSettingsOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-slate-900/90 backdrop-blur-md" onClick={() => setIsSettingsOpen(false)} />
           <div className="relative bg-white w-full max-w-2xl rounded-[2.5rem] shadow-2xl overflow-hidden animate-in zoom-in duration-300 flex flex-col max-h-[90vh]">
-             <div className="bg-slate-900 p-8 flex items-center justify-between text-white">
+             <div className="bg-slate-900 p-6 md:p-8 flex items-center justify-between text-white">
                 <div className="flex items-center gap-4">
                   <div className="bg-amber-500 p-3 rounded-2xl text-slate-900"><Settings size={24} /></div>
-                  <h2 className="text-2xl font-black uppercase tracking-tighter italic">Configurações</h2>
+                  <h2 className="text-xl md:text-2xl font-black uppercase tracking-tighter italic">Ajustes do App</h2>
                 </div>
                 <button onClick={() => setIsSettingsOpen(false)} className="p-2 bg-white/10 rounded-full"><X size={24} /></button>
              </div>
@@ -296,7 +314,7 @@ const App: React.FC = () => {
                <button onClick={() => setSettingsTab('apk')} className={`flex-1 py-4 text-[10px] font-black uppercase tracking-widest ${settingsTab === 'apk' ? 'text-amber-500 border-b-4 border-amber-500 bg-amber-50/20' : 'text-slate-400'}`}>GERAR APK ANDROID</button>
              </div>
              
-             <div className="p-8 overflow-y-auto no-scrollbar space-y-6">
+             <div className="p-6 md:p-8 overflow-y-auto no-scrollbar space-y-6">
                 {settingsTab === 'supabase' ? (
                   <div className="space-y-6">
                     <InputField label="Project URL" value={dbUrl} onChange={setDbUrl} icon={<LinkIcon size={20}/>} placeholder="https://..." />
@@ -305,19 +323,22 @@ const App: React.FC = () => {
                   </div>
                 ) : (
                   <div className="space-y-6">
-                    <div className="bg-amber-50 border-2 border-amber-200 p-6 rounded-3xl flex items-start gap-4">
-                      <Smartphone size={32} className="text-amber-600 shrink-0" />
-                      <div className="space-y-2">
-                        <p className="text-xs font-black text-amber-900 uppercase">Assistente de Exportação</p>
-                        <p className="text-[11px] text-amber-800 font-medium leading-relaxed">Para ver as mudanças no celular, você precisa "sincronizar" o código web com a pasta do Android. Siga os passos no terminal do seu computador:</p>
+                    <div className="bg-amber-50 border-2 border-amber-200 p-5 rounded-3xl flex items-start gap-4">
+                      <Smartphone size={28} className="text-amber-600 shrink-0" />
+                      <div className="space-y-1">
+                        <p className="text-[11px] font-black text-amber-900 uppercase">Guia de Compilação (APK)</p>
+                        <p className="text-[10px] text-amber-800 font-medium leading-relaxed">Siga estes passos no seu computador para gerar o instalador do Android.</p>
                       </div>
                     </div>
                     <div className="space-y-4">
-                      <Step title="1. Sincronizar Arquivos" command="npx cap copy" onCopy={copyText} />
-                      <Step title="2. Abrir no Android Studio" command="npx cap open android" onCopy={copyText} />
-                      <div className="p-6 bg-slate-900 rounded-3xl text-white">
-                        <p className="text-[10px] font-black text-amber-500 uppercase mb-3">DICA FINAL</p>
-                        <p className="text-[11px] font-medium leading-relaxed text-slate-300">Dentro do Android Studio, clique em <b>Build > Build APK(s)</b>. Quando terminar, uma notificação aparecerá no canto inferior direito. Clique em "Locate" para pegar seu arquivo <b>.apk</b>.</p>
+                      <Step title="Passo 1: Instalar Ponte (Uma vez)" command="npm install @capacitor/android" onCopy={copyText} />
+                      <Step title="Passo 2: Criar Pasta Android (Uma vez)" command="npx cap add android" onCopy={copyText} />
+                      <Step title="Passo 3: Sincronizar Código (Sempre)" command="npx cap copy" onCopy={copyText} />
+                      <Step title="Passo 4: Abrir Android Studio" command="npx cap open android" onCopy={copyText} />
+                      
+                      <div className="p-5 bg-slate-900 rounded-3xl text-white">
+                        <p className="text-[10px] font-black text-amber-500 uppercase mb-2">GERANDO O APK FINAL</p>
+                        <p className="text-[10px] font-medium leading-relaxed text-slate-300">No Android Studio, use o menu: <b>Build > Build APK(s)</b>. Aguarde e clique em "Locate".</p>
                       </div>
                     </div>
                   </div>
@@ -338,6 +359,13 @@ const SideButton: React.FC<{active: boolean, onClick: () => void, icon: React.Re
   </button>
 );
 
+const BottomTab: React.FC<{active: boolean, onClick: () => void, icon: React.ReactNode, label: string}> = ({ active, onClick, icon, label }) => (
+  <button onClick={onClick} className={`flex flex-col items-center gap-1 transition-all ${active ? 'text-amber-500 scale-110' : 'text-slate-400'}`}>
+    {icon}
+    <span className="text-[9px] font-black uppercase tracking-tighter">{label}</span>
+  </button>
+);
+
 const InputField: React.FC<{label: string, value: string, onChange: (v: string) => void, icon: React.ReactNode, placeholder: string, isPassword?: boolean}> = ({ label, value, onChange, icon, placeholder, isPassword }) => (
   <div className="space-y-2">
     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{label}</label>
@@ -351,9 +379,9 @@ const InputField: React.FC<{label: string, value: string, onChange: (v: string) 
 const Step: React.FC<{title: string, command: string, onCopy: (c: string) => void}> = ({ title, command, onCopy }) => (
   <div className="space-y-2">
     <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">{title}</p>
-    <div className="bg-slate-900 p-4 rounded-xl flex items-center justify-between border border-slate-800">
-      <code className="text-amber-400 font-mono text-xs">{command}</code>
-      <button onClick={() => onCopy(command)} className="text-slate-500 hover:text-white"><Copy size={16}/></button>
+    <div className="bg-slate-900 p-4 rounded-xl flex items-center justify-between border border-slate-800 group">
+      <code className="text-amber-400 font-mono text-[10px] overflow-hidden truncate mr-2">{command}</code>
+      <button onClick={() => onCopy(command)} className="text-slate-500 hover:text-white shrink-0"><Copy size={16}/></button>
     </div>
   </div>
 );
