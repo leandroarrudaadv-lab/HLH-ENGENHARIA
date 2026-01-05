@@ -1,20 +1,7 @@
-<!doctype html>
-<html lang="pt-BR">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width,initial-scale=1.0" />
-    <title>HLH Engenharia</title>
+import React from "react";
+import { createRoot } from "react-dom/client";
+import App from "./App.jsx";
+import "./styles.css";
 
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <style>body { font-family: 'Inter', sans-serif; }</style>
-  </head>
-  <body class="bg-slate-50 text-slate-900">
-    <div id="root"></div>
-
-    <!-- Vite resolves esse arquivo em dev e no build gera os assets -->
-    <script type="module" src="/src/main.jsx"></script>
-  </body>
-</html>
+const root = createRoot(document.getElementById("root"));
+root.render(<App />);
