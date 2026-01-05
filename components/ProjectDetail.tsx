@@ -1,12 +1,12 @@
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { Project, DailyReport, MaterialPurchase, PresenceRecord, ProjectPhoto, Contract, Employee, ProjectStatus } from '../types';
 import { 
   Camera, FileText, Users, ShoppingCart, 
   Plus, Calendar, User, Folder, Star,
   Trash2, ExternalLink, MapPin, Briefcase, 
   ChevronRight, ArrowLeft, Printer, Check, ClipboardList, ChevronLeft, Save, Map as MapIcon,
-  Percent
+  Percent, Upload, FileUp
 } from 'lucide-react';
 
 interface ProjectDetailProps {
@@ -104,7 +104,7 @@ const ProjectDetail: React.FC<ProjectDetailProps> = ({ project, onUpdate, onDele
       <div className="flex overflow-x-auto gap-2 mb-8 no-scrollbar pb-2">
         <TabButton label="DIÁRIO RDO" active={activeTab === 'rdo'} onClick={() => setActiveTab('rdo')} icon={<FileText size={16}/>} />
         <TabButton label="COMPRAS" active={activeTab === 'purchases'} onClick={() => setActiveTab('purchases')} icon={<ShoppingCart size={16}/>} />
-        <TabButton label="PRESENÇA" active={activeTab === 'presence'} onClick={() => setActiveTab('presence')} icon={<Users size={16}/>} />
+        <TabButton label="EQUIPE" active={activeTab === 'presence'} onClick={() => setActiveTab('presence')} icon={<Users size={16}/>} />
         <TabButton label="FOTOS" active={activeTab === 'photos'} onClick={() => setActiveTab('photos')} icon={<Camera size={16}/>} />
         <TabButton label="CONTRATOS" active={activeTab === 'contracts'} onClick={() => setActiveTab('contracts')} icon={<Briefcase size={16}/>} />
         <TabButton label="MAPA" active={activeTab === 'location'} onClick={() => setActiveTab('location')} icon={<MapPin size={16}/>} />
@@ -418,14 +418,14 @@ const PresenceModule: React.FC<{project: Project, onUpdate: (key: keyof Project,
   return (
     <div className="p-8">
       <div className="flex justify-between items-center mb-8">
-        <h3 className="text-2xl font-black text-slate-900 uppercase tracking-tighter">Controle de Equipe</h3>
+        <h3 className="text-2xl font-black text-slate-900 uppercase tracking-tighter">Equipe Alocada</h3>
         <div className="flex gap-2">
           <input 
             type="text" 
             value={empName} 
             onChange={e => setEmpName(e.target.value)}
             className="bg-slate-100 border-none rounded-xl px-4 py-2 text-sm font-black uppercase outline-none" 
-            placeholder="Nome Funcionário"
+            placeholder="Nome Colaborador"
           />
           <button onClick={addEmployee} className="bg-slate-900 text-white p-2 rounded-xl active:scale-95"><Plus size={20}/></button>
         </div>
@@ -433,7 +433,7 @@ const PresenceModule: React.FC<{project: Project, onUpdate: (key: keyof Project,
       
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 font-black">
         {project.employees.length === 0 ? (
-          <div className="col-span-full text-center py-20 text-slate-300 uppercase tracking-widest text-xs">Nenhum funcionário cadastrado.</div>
+          <div className="col-span-full text-center py-20 text-slate-300 uppercase tracking-widest text-xs">Nenhum colaborador alocado nesta obra.</div>
         ) : (
           project.employees.map(emp => (
             <div key={emp.id} className="p-4 bg-slate-50 rounded-2xl flex items-center justify-between border border-slate-100">
@@ -453,20 +453,50 @@ const PresenceModule: React.FC<{project: Project, onUpdate: (key: keyof Project,
 const ContractsModule: React.FC<{project: Project, onUpdate: (key: keyof Project, data: any) => void}> = ({ project, onUpdate }) => {
   const [currentFolder, setCurrentFolder] = useState<'root' | 'cliente' | 'empreiteiro'>('root');
   const [isAdding, setIsAdding] = useState(false);
-  const [form, setForm] = useState({ name: '', url: '' });
+  const [form, setForm] = useState({ name: '', url: '', fileName: '' });
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.type !== 'application/pdf') {
+        alert('POR FAVOR, SELECIONE APENAS ARQUIVOS PDF.');
+        return;
+      }
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setForm(prev => ({ 
+          ...prev, 
+          url: reader.result as string,
+          fileName: file.name
+        }));
+      };
+      reader.readAsDataURL(file);
+    }
+  };
 
   const addContract = () => {
-    if (!form.name || currentFolder === 'root') return;
+    if (!form.name || !form.url || currentFolder === 'root') {
+      alert('PREENCHA O NOME E ANEXE UM PDF OU INSIRA UM LINK.');
+      return;
+    }
     const newContract: Contract = {
       id: Date.now().toString(),
       type: currentFolder as 'cliente' | 'empreiteiro',
       name: form.name.toUpperCase(),
-      url: form.url || '#',
+      url: form.url,
       date: new Date().toLocaleDateString('pt-BR')
     };
     onUpdate('contracts', [...project.contracts, newContract]);
     setIsAdding(false);
-    setForm({ name: '', url: '' });
+    setForm({ name: '', url: '', fileName: '' });
+  };
+
+  const handleDelete = (id: string) => {
+    if (window.confirm('EXCLUIR ESTE DOCUMENTO?')) {
+      const filtered = project.contracts.filter(c => c.id !== id);
+      onUpdate('contracts', filtered);
+    }
   };
 
   const filteredContracts = project.contracts.filter(c => c.type === currentFolder);
@@ -527,19 +557,51 @@ const ContractsModule: React.FC<{project: Project, onUpdate: (key: keyof Project
               />
             </div>
             <div className="space-y-1">
-              <label className="text-[10px] uppercase text-slate-500 font-black tracking-widest">Link do Arquivo (URL)</label>
-              <input 
-                type="text" 
-                value={form.url} 
-                onChange={e => setForm({...form, url: e.target.value})} 
-                className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm font-black outline-none focus:ring-2 focus:ring-amber-500" 
-                placeholder="https://drive.google.com/..." 
-              />
+              <label className="text-[10px] uppercase text-slate-500 font-black tracking-widest">Anexo PDF ou Link</label>
+              <div className="flex gap-2">
+                <input 
+                  type="text" 
+                  value={form.fileName || form.url} 
+                  onChange={e => setForm({...form, url: e.target.value, fileName: ''})} 
+                  className="flex-1 bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm font-black outline-none focus:ring-2 focus:ring-amber-500" 
+                  placeholder="Link do arquivo ou selecione o PDF ao lado ->" 
+                  readOnly={!!form.fileName}
+                />
+                <input 
+                  type="file" 
+                  accept=".pdf" 
+                  className="hidden" 
+                  ref={fileInputRef} 
+                  onChange={handleFileUpload} 
+                />
+                <button 
+                  onClick={() => fileInputRef.current?.click()}
+                  className="bg-amber-500 text-slate-900 px-4 rounded-xl flex items-center gap-2 hover:bg-amber-600 transition-colors"
+                  title="Upload PDF"
+                >
+                  <FileUp size={18} />
+                </button>
+              </div>
+              {form.fileName && (
+                <p className="text-[9px] text-green-600 font-black uppercase mt-1 flex items-center gap-1">
+                  <Check size={10} /> Arquivo Selecionado: {form.fileName}
+                </p>
+              )}
             </div>
           </div>
           <div className="flex justify-end gap-3 pt-2">
-            <button onClick={() => setIsAdding(false)} className="px-6 py-2 text-slate-400 font-black uppercase text-[10px] tracking-widest">Cancelar</button>
-            <button onClick={addContract} className="bg-amber-500 text-slate-900 px-8 py-3 rounded-xl font-black uppercase text-[10px] tracking-widest shadow-lg">SALVAR ARQUIVO</button>
+            <button 
+              onClick={() => { setIsAdding(false); setForm({ name: '', url: '', fileName: '' }); }} 
+              className="px-6 py-2 text-slate-400 font-black uppercase text-[10px] tracking-widest"
+            >
+              Cancelar
+            </button>
+            <button 
+              onClick={addContract} 
+              className="bg-amber-500 text-slate-900 px-8 py-3 rounded-xl font-black uppercase text-[10px] tracking-widest shadow-lg"
+            >
+              SALVAR DOCUMENTO
+            </button>
           </div>
         </div>
       )}
@@ -559,14 +621,24 @@ const ContractsModule: React.FC<{project: Project, onUpdate: (key: keyof Project
                   <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest">Adicionado em {c.date}</p>
                 </div>
               </div>
-              <a 
-                href={c.url} 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="p-3 text-slate-300 hover:text-slate-900 hover:bg-slate-50 rounded-xl transition-all"
-              >
-                <ExternalLink size={20} />
-              </a>
+              <div className="flex items-center gap-2">
+                <a 
+                  href={c.url} 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="p-3 text-slate-400 hover:text-slate-900 hover:bg-slate-50 rounded-xl transition-all"
+                  title="Abrir Documento"
+                >
+                  <ExternalLink size={20} />
+                </a>
+                <button 
+                  onClick={() => handleDelete(c.id)}
+                  className="p-3 text-slate-300 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all"
+                  title="Remover Documento"
+                >
+                  <Trash2 size={20} />
+                </button>
+              </div>
             </div>
           ))
         )}

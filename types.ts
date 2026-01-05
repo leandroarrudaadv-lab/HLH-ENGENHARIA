@@ -6,6 +6,8 @@ export interface Employee {
   name: string;
   role: string;
   active: boolean;
+  dailyRate?: number;
+  projectId?: string; // ID da obra onde está alocado
 }
 
 export interface DailyReport {
