@@ -62,6 +62,16 @@ const App: React.FC = () => {
     setProjects(prev => prev.map(p => p.id === updated.id ? updated : p));
   };
 
+  const deleteProject = (id: string) => {
+    const projectToDelete = projects.find(p => p.id === id);
+    if (window.confirm(`TEM CERTEZA QUE DESEJA EXCLUIR A OBRA "${projectToDelete?.name}"? TODOS OS DADOS SERÃO PERDIDOS PERMANENTEMENTE.`)) {
+      setProjects(prev => prev.filter(p => p.id !== id));
+      if (selectedProjectId === id) {
+        setSelectedProjectId(null);
+      }
+    }
+  };
+
   const selectedProject = projects.find(p => p.id === selectedProjectId);
   const filteredProjects = projects.filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase()));
 
@@ -69,7 +79,7 @@ const App: React.FC = () => {
     <div className="min-h-screen bg-slate-100 flex flex-col md:flex-row">
       {/* Sidebar Desktop */}
       <aside className="hidden md:flex flex-col w-64 bg-slate-900 text-white p-6 sticky top-0 h-screen shadow-2xl">
-        <div className="mb-10 flex items-center gap-3">
+        <div className="mb-10 flex items-center gap-3" onClick={() => setSelectedProjectId(null)} style={{cursor: 'pointer'}}>
           <div className="bg-amber-500 p-2 rounded-xl">
             <HardHat className="text-slate-900" size={28} />
           </div>
@@ -110,7 +120,7 @@ const App: React.FC = () => {
       <main className="flex-1 flex flex-col min-w-0">
         <header className="bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between sticky top-0 z-50">
           <div className="flex items-center gap-4">
-            <div className="md:hidden bg-amber-500 p-1.5 rounded-lg">
+            <div className="md:hidden bg-amber-500 p-1.5 rounded-lg" onClick={() => setSelectedProjectId(null)}>
                <HardHat size={20} className="text-slate-900" />
             </div>
             <h2 className="text-lg font-black text-slate-900 uppercase tracking-tighter">
@@ -136,11 +146,12 @@ const App: React.FC = () => {
             <ProjectDetail 
               project={selectedProject} 
               onUpdate={updateProject} 
+              onDelete={() => deleteProject(selectedProject.id)}
               onBack={() => setSelectedProjectId(null)} 
             />
           ) : (
             <div className="max-w-7xl mx-auto">
-              <Dashboard projects={filteredProjects} onSelect={setSelectedProjectId} />
+              <Dashboard projects={filteredProjects} onSelect={setSelectedProjectId} onDeleteProject={deleteProject} />
             </div>
           )}
         </div>

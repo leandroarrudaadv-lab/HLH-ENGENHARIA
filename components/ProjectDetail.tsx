@@ -1,44 +1,102 @@
 
 import React, { useState } from 'react';
-import { Project, DailyReport, MaterialPurchase, PresenceRecord, ProjectPhoto, Contract, Employee } from '../types';
+import { Project, DailyReport, MaterialPurchase, PresenceRecord, ProjectPhoto, Contract, Employee, ProjectStatus } from '../types';
 import { 
   Camera, FileText, Users, ShoppingCart, 
-  Plus, Calendar, User, 
+  Plus, Calendar, User, Folder, Star,
   Trash2, ExternalLink, MapPin, Briefcase, 
-  ChevronRight, ArrowLeft, Printer, Check, ClipboardList
+  ChevronRight, ArrowLeft, Printer, Check, ClipboardList, ChevronLeft, Save, Map as MapIcon,
+  Percent
 } from 'lucide-react';
 
 interface ProjectDetailProps {
   project: Project;
   onUpdate: (updated: Project) => void;
+  onDelete: () => void;
   onBack: () => void;
 }
 
 type Tab = 'rdo' | 'purchases' | 'presence' | 'photos' | 'contracts' | 'location';
 
-const ProjectDetail: React.FC<ProjectDetailProps> = ({ project, onUpdate, onBack }) => {
+const ProjectDetail: React.FC<ProjectDetailProps> = ({ project, onUpdate, onDelete, onBack }) => {
   const [activeTab, setActiveTab] = useState<Tab>('rdo');
 
   const handleSubUpdate = (key: keyof Project, data: any) => {
     onUpdate({ ...project, [key]: data });
   };
 
+  const handleLocationUpdate = (newLocation: string) => {
+    onUpdate({ ...project, location: newLocation });
+  };
+
+  const handleStatusChange = (newStatus: ProjectStatus) => {
+    onUpdate({ ...project, status: newStatus });
+  };
+
+  const handleProgressChange = (val: number) => {
+    onUpdate({ ...project, progress: val });
+  };
+
   return (
     <div className="animate-in slide-in-from-right duration-300 max-w-6xl mx-auto">
       {/* Header Obra */}
-      <div className="bg-white rounded-3xl p-8 border border-slate-200 mb-8 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
-        <div>
-          <button onClick={onBack} className="text-[10px] font-black text-slate-400 flex items-center gap-1 uppercase tracking-widest mb-4 hover:text-slate-900 transition-colors">
-            <ArrowLeft size={12} /> Voltar ao Painel
-          </button>
-          <h1 className="text-4xl font-black text-slate-900 tracking-tighter uppercase">{project.name}</h1>
-          <p className="text-slate-500 font-black uppercase text-xs tracking-widest mt-1 flex items-center gap-2">
+      <div className="bg-white rounded-3xl p-8 border border-slate-200 mb-8 shadow-sm flex flex-col lg:flex-row justify-between items-start lg:items-center gap-8">
+        <div className="flex-1">
+          <div className="flex justify-between items-start">
+            <button onClick={onBack} className="text-[10px] font-black text-slate-400 flex items-center gap-1 uppercase tracking-widest mb-4 hover:text-slate-900 transition-colors">
+              <ArrowLeft size={12} /> Voltar ao Painel
+            </button>
+            <button 
+              onClick={onDelete}
+              className="text-[10px] font-black text-red-400 flex items-center gap-1 uppercase tracking-widest hover:text-red-600 transition-colors bg-red-50 px-3 py-1.5 rounded-lg border border-red-100"
+            >
+              <Trash2 size={12} /> Excluir Obra
+            </button>
+          </div>
+          <h1 className="text-4xl font-black text-slate-900 tracking-tighter uppercase leading-none mb-1">{project.name}</h1>
+          <p className="text-slate-500 font-black uppercase text-xs tracking-widest flex items-center gap-2">
             <MapPin size={14} className="text-amber-500" /> {project.location}
           </p>
         </div>
-        <div className="bg-slate-100 p-4 rounded-2xl border border-slate-200 text-right">
-          <span className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Status Atual</span>
-          <p className="text-xl font-black text-slate-900 uppercase tracking-tighter">{project.status}</p>
+
+        <div className="flex flex-col sm:flex-row gap-6 w-full lg:w-auto items-center">
+          {/* Controle de Progresso Personalizado */}
+          <div className="bg-slate-50 p-5 rounded-2xl border border-slate-200 flex-1 min-w-[200px] w-full">
+            <div className="flex justify-between items-center mb-2">
+              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Progresso da Obra</span>
+              <span className="text-sm font-black text-slate-900">{project.progress}%</span>
+            </div>
+            <input 
+              type="range" 
+              min="0" 
+              max="100" 
+              value={project.progress} 
+              onChange={(e) => handleProgressChange(parseInt(e.target.value))}
+              className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-amber-500 transition-all"
+            />
+            <div className="flex justify-between mt-1">
+              <span className="text-[8px] font-black text-slate-300 uppercase">Início</span>
+              <span className="text-[8px] font-black text-slate-300 uppercase">Conclusão</span>
+            </div>
+          </div>
+
+          {/* Status Select */}
+          <div className="bg-slate-50 p-5 rounded-2xl border border-slate-200 w-full sm:w-auto">
+            <span className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Status da Obra</span>
+            <select 
+              value={project.status} 
+              onChange={(e) => handleStatusChange(e.target.value as ProjectStatus)}
+              className={`w-full sm:w-auto px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest border-2 outline-none cursor-pointer transition-all ${
+                project.status === 'Em andamento' ? 'bg-green-500 text-white border-green-600' : 
+                project.status === 'Concluída' ? 'bg-slate-900 text-amber-500 border-amber-600' : 
+                'bg-amber-500 text-slate-900 border-amber-600'
+              }`}
+            >
+              <option value="Planejamento" className="bg-white text-slate-900">PLANEJAMENTO</option>
+              <option value="Em andamento" className="bg-white text-slate-900">EM ANDAMENTO</option>
+              <option value="Concluída" className="bg-white text-slate-900">CONCLUÍDA</option>
+            </select>
+          </div>
         </div>
       </div>
 
@@ -57,9 +115,9 @@ const ProjectDetail: React.FC<ProjectDetailProps> = ({ project, onUpdate, onBack
         {activeTab === 'rdo' && <RDOModule project={project} onUpdate={handleSubUpdate} />}
         {activeTab === 'purchases' && <PurchasesModule project={project} onUpdate={handleSubUpdate} />}
         {activeTab === 'presence' && <PresenceModule project={project} onUpdate={handleSubUpdate} />}
-        {activeTab === 'photos' && <PhotosModule project={project} onUpdate={handleSubUpdate} />}
+        {activeTab === 'photos' && <PhotosModule project={project} onUpdate={handleSubUpdate} onUpdateAll={onUpdate} />}
         {activeTab === 'contracts' && <ContractsModule project={project} onUpdate={handleSubUpdate} />}
-        {activeTab === 'location' && <LocationModule project={project} />}
+        {activeTab === 'location' && <LocationModule project={project} onUpdateLocation={handleLocationUpdate} />}
       </div>
     </div>
   );
@@ -74,7 +132,167 @@ const TabButton: React.FC<{label: string, active: boolean, onClick: () => void, 
   </button>
 );
 
-// --- COMPONENTES DE MÓDULO ---
+const PhotosModule: React.FC<{project: Project, onUpdate: (key: keyof Project, data: any) => void, onUpdateAll: (p: Project) => void}> = ({ project, onUpdate, onUpdateAll }) => {
+  const handleUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const newPhoto: ProjectPhoto = {
+          id: Date.now().toString(),
+          url: reader.result as string,
+          caption: 'Registro de Campo',
+          date: new Date().toLocaleDateString('pt-BR')
+        };
+        onUpdate('photos', [newPhoto, ...project.photos]);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const setMainPhoto = (url: string) => {
+    onUpdateAll({ ...project, mainPhoto: url });
+  };
+
+  const deletePhoto = (id: string) => {
+    if (confirm('EXCLUIR ESTA FOTO?')) {
+      const filtered = project.photos.filter(p => p.id !== id);
+      onUpdate('photos', filtered);
+    }
+  };
+
+  return (
+    <div className="p-8">
+      <div className="flex justify-between items-center mb-8">
+        <div>
+          <h3 className="text-2xl font-black text-slate-900 uppercase tracking-tighter">Galeria da Obra</h3>
+          <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest">Escolha a foto principal para o painel</p>
+        </div>
+        <label className="bg-amber-500 text-slate-900 font-black px-6 py-3 rounded-xl flex items-center gap-2 uppercase text-[10px] tracking-widest shadow-xl cursor-pointer hover:bg-amber-600 transition-all active:scale-95">
+          <Plus size={18} /> UPLOAD FOTO
+          <input type="file" accept="image/*" className="hidden" onChange={handleUpload} />
+        </label>
+      </div>
+      
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+        {project.photos.map(photo => (
+          <div key={photo.id} className="group relative aspect-square bg-slate-100 rounded-3xl overflow-hidden border-2 border-transparent transition-all hover:border-amber-500 shadow-sm">
+            <img src={photo.url} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" alt="Obra" />
+            
+            <div className="absolute inset-0 bg-slate-900/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-3 p-4">
+               <button 
+                 onClick={() => setMainPhoto(photo.url)}
+                 className={`w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${project.mainPhoto === photo.url ? 'bg-amber-500 text-slate-900' : 'bg-white text-slate-900 hover:bg-amber-500'}`}
+               >
+                 <Star size={14} fill={project.mainPhoto === photo.url ? "currentColor" : "none"} /> 
+                 {project.mainPhoto === photo.url ? 'Foto Principal' : 'Tornar Principal'}
+               </button>
+               <button 
+                 onClick={() => deletePhoto(photo.id)}
+                 className="w-full flex items-center justify-center gap-2 px-3 py-2 text-[10px] font-black uppercase tracking-widest bg-red-500/20 text-red-100 hover:bg-red-500 hover:text-white rounded-xl transition-all"
+               >
+                 <Trash2 size={14} /> Excluir
+               </button>
+            </div>
+
+            {project.mainPhoto === photo.url && (
+              <div className="absolute top-3 left-3 bg-amber-500 text-slate-900 p-2 rounded-xl shadow-lg border-2 border-amber-600">
+                <Star size={14} fill="currentColor" />
+              </div>
+            )}
+          </div>
+        ))}
+        {project.photos.length === 0 && (
+          <div className="col-span-full py-24 text-center border-2 border-dashed border-slate-100 rounded-3xl bg-slate-50/50">
+            <Camera size={48} className="mx-auto text-slate-200 mb-4" />
+            <p className="text-slate-300 uppercase font-black tracking-widest text-[10px]">A galeria está vazia. Faça o primeiro upload.</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+const RDOModule: React.FC<{project: Project, onUpdate: (key: keyof Project, data: any) => void}> = ({ project, onUpdate }) => {
+  const [isAdding, setIsAdding] = useState(false);
+  const [form, setForm] = useState<Partial<DailyReport>>({ date: new Date().toISOString().split('T')[0], weather: 'ENSOLARADO', activities: '' });
+
+  const handleSave = () => {
+    if (!form.activities) return;
+    const rdo: DailyReport = {
+      id: Date.now().toString(),
+      date: form.date || '',
+      weather: form.weather || 'ENSOLARADO',
+      activities: form.activities.toUpperCase(),
+      observations: '',
+      author: 'ENGENHEIRO RESPONSÁVEL'
+    };
+    onUpdate('reports', [rdo, ...project.reports]);
+    setIsAdding(false);
+    setForm({ date: new Date().toISOString().split('T')[0], weather: 'ENSOLARADO', activities: '' });
+  };
+
+  return (
+    <div className="p-8">
+      <div className="flex justify-between items-center mb-8">
+        <h3 className="text-2xl font-black text-slate-900 uppercase tracking-tighter">Diários de Obra</h3>
+        <button onClick={() => setIsAdding(true)} className="bg-amber-500 text-slate-900 font-black px-6 py-3 rounded-xl flex items-center gap-2 uppercase text-[10px] tracking-widest shadow-xl">
+          <Plus size={18} /> NOVO REGISTRO
+        </button>
+      </div>
+
+      {isAdding && (
+        <div className="bg-slate-100 p-6 rounded-2xl mb-8 space-y-4 border border-slate-200 font-black animate-in fade-in">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1">
+              <label className="text-[10px] uppercase text-slate-500 tracking-widest">Data</label>
+              <input type="date" value={form.date} onChange={e => setForm({...form, date: e.target.value})} className="w-full bg-white border-none rounded-xl px-4 py-3 font-black outline-none" />
+            </div>
+            <div className="space-y-1">
+              <label className="text-[10px] uppercase text-slate-500 tracking-widest">Clima</label>
+              <select value={form.weather} onChange={e => setForm({...form, weather: e.target.value})} className="w-full bg-white border-none rounded-xl px-4 py-3 font-black outline-none">
+                <option>ENSOLARADO</option>
+                <option>CHUVOSO</option>
+                <option>NUBLADO</option>
+              </select>
+            </div>
+          </div>
+          <div className="space-y-1">
+            <label className="text-[10px] uppercase text-slate-500 tracking-widest">Relatório Técnico / Atividades</label>
+            <textarea rows={4} value={form.activities} onChange={e => setForm({...form, activities: e.target.value})} className="w-full bg-white border-none rounded-xl px-4 py-3 font-black uppercase outline-none" placeholder="O QUE FOI EXECUTADO HOJE?"></textarea>
+          </div>
+          <div className="flex justify-end gap-3">
+            <button onClick={() => setIsAdding(false)} className="text-[10px] font-black uppercase tracking-widest text-slate-400">Sair</button>
+            <button onClick={handleSave} className="bg-slate-900 text-white px-8 py-3 rounded-xl font-black uppercase text-[10px] tracking-widest shadow-xl">Salvar RDO</button>
+          </div>
+        </div>
+      )}
+
+      <div className="space-y-4">
+        {project.reports.length === 0 ? (
+          <div className="py-20 text-center text-slate-300 uppercase font-black tracking-widest text-xs border-2 border-dashed border-slate-100 rounded-3xl">Sem relatórios registrados.</div>
+        ) : (
+          project.reports.map(r => (
+            <div key={r.id} className="bg-white border border-slate-100 p-6 rounded-2xl hover:border-amber-500 transition-all shadow-sm">
+              <div className="flex justify-between items-center mb-3">
+                <div className="flex items-center gap-3">
+                  <div className="bg-slate-900 text-amber-500 p-2 rounded-lg"><Calendar size={14} /></div>
+                  <span className="text-xs font-black uppercase tracking-widest text-slate-900">{new Date(r.date + 'T12:00:00Z').toLocaleDateString('pt-BR')}</span>
+                  <span className="text-[10px] bg-slate-100 px-3 py-1 rounded-full font-black uppercase text-slate-500">{r.weather}</span>
+                </div>
+                <span className="text-[10px] font-black text-slate-300 uppercase">ID #{r.id.slice(-4)}</span>
+              </div>
+              <p className="text-sm font-black text-slate-700 uppercase leading-relaxed tracking-tight">{r.activities}</p>
+              <div className="mt-4 flex items-center gap-2 text-[10px] text-slate-400 font-black uppercase">
+                 <User size={12}/> {r.author}
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+    </div>
+  );
+};
 
 const PurchasesModule: React.FC<{project: Project, onUpdate: (key: keyof Project, data: any) => void}> = ({ project, onUpdate }) => {
   const [isAdding, setIsAdding] = useState(false);
@@ -187,87 +405,6 @@ const PurchasesModule: React.FC<{project: Project, onUpdate: (key: keyof Project
   );
 };
 
-const RDOModule: React.FC<{project: Project, onUpdate: (key: keyof Project, data: any) => void}> = ({ project, onUpdate }) => {
-  const [isAdding, setIsAdding] = useState(false);
-  const [form, setForm] = useState<Partial<DailyReport>>({ date: new Date().toISOString().split('T')[0], weather: 'ENSOLARADO', activities: '' });
-
-  const handleSave = () => {
-    if (!form.activities) return;
-    const rdo: DailyReport = {
-      id: Date.now().toString(),
-      date: form.date || '',
-      weather: form.weather || 'ENSOLARADO',
-      activities: form.activities.toUpperCase(),
-      observations: '',
-      author: 'ENGENHEIRO RESPONSÁVEL'
-    };
-    onUpdate('reports', [rdo, ...project.reports]);
-    setIsAdding(false);
-    setForm({ date: new Date().toISOString().split('T')[0], weather: 'ENSOLARADO', activities: '' });
-  };
-
-  return (
-    <div className="p-8">
-      <div className="flex justify-between items-center mb-8">
-        <h3 className="text-2xl font-black text-slate-900 uppercase tracking-tighter">Diários de Obra</h3>
-        <button onClick={() => setIsAdding(true)} className="bg-amber-500 text-slate-900 font-black px-6 py-3 rounded-xl flex items-center gap-2 uppercase text-[10px] tracking-widest shadow-xl">
-          <Plus size={18} /> NOVO REGISTRO
-        </button>
-      </div>
-
-      {isAdding && (
-        <div className="bg-slate-100 p-6 rounded-2xl mb-8 space-y-4 border border-slate-200 font-black animate-in fade-in">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-1">
-              <label className="text-[10px] uppercase text-slate-500 tracking-widest">Data</label>
-              <input type="date" value={form.date} onChange={e => setForm({...form, date: e.target.value})} className="w-full bg-white border-none rounded-xl px-4 py-3 font-black outline-none" />
-            </div>
-            <div className="space-y-1">
-              <label className="text-[10px] uppercase text-slate-500 tracking-widest">Clima</label>
-              <select value={form.weather} onChange={e => setForm({...form, weather: e.target.value})} className="w-full bg-white border-none rounded-xl px-4 py-3 font-black outline-none">
-                <option>ENSOLARADO</option>
-                <option>CHUVOSO</option>
-                <option>NUBLADO</option>
-              </select>
-            </div>
-          </div>
-          <div className="space-y-1">
-            <label className="text-[10px] uppercase text-slate-500 tracking-widest">Relatório Técnico / Atividades</label>
-            <textarea rows={4} value={form.activities} onChange={e => setForm({...form, activities: e.target.value})} className="w-full bg-white border-none rounded-xl px-4 py-3 font-black uppercase outline-none" placeholder="O QUE FOI EXECUTADO HOJE?"></textarea>
-          </div>
-          <div className="flex justify-end gap-3">
-            <button onClick={() => setIsAdding(false)} className="text-[10px] font-black uppercase tracking-widest text-slate-400">Sair</button>
-            <button onClick={handleSave} className="bg-slate-900 text-white px-8 py-3 rounded-xl font-black uppercase text-[10px] tracking-widest shadow-xl">Salvar RDO</button>
-          </div>
-        </div>
-      )}
-
-      <div className="space-y-4">
-        {project.reports.length === 0 ? (
-          <div className="py-20 text-center text-slate-300 uppercase font-black tracking-widest text-xs border-2 border-dashed border-slate-100 rounded-3xl">Sem relatórios registrados.</div>
-        ) : (
-          project.reports.map(r => (
-            <div key={r.id} className="bg-white border border-slate-100 p-6 rounded-2xl hover:border-amber-500 transition-all shadow-sm">
-              <div className="flex justify-between items-center mb-3">
-                <div className="flex items-center gap-3">
-                  <div className="bg-slate-900 text-amber-500 p-2 rounded-lg"><Calendar size={14} /></div>
-                  <span className="text-xs font-black uppercase tracking-widest text-slate-900">{new Date(r.date + 'T12:00:00Z').toLocaleDateString('pt-BR')}</span>
-                  <span className="text-[10px] bg-slate-100 px-3 py-1 rounded-full font-black uppercase text-slate-500">{r.weather}</span>
-                </div>
-                <span className="text-[10px] font-black text-slate-300 uppercase">ID #{r.id.slice(-4)}</span>
-              </div>
-              <p className="text-sm font-black text-slate-700 uppercase leading-relaxed tracking-tight">{r.activities}</p>
-              <div className="mt-4 flex items-center gap-2 text-[10px] text-slate-400 font-black uppercase">
-                 <User size={12}/> {r.author}
-              </div>
-            </div>
-          ))
-        )}
-      </div>
-    </div>
-  );
-};
-
 const PresenceModule: React.FC<{project: Project, onUpdate: (key: keyof Project, data: any) => void}> = ({ project, onUpdate }) => {
   const [empName, setEmpName] = useState('');
   
@@ -313,63 +450,203 @@ const PresenceModule: React.FC<{project: Project, onUpdate: (key: keyof Project,
   );
 };
 
-const PhotosModule: React.FC<{project: Project, onUpdate: (key: keyof Project, data: any) => void}> = ({ project, onUpdate }) => {
-  const handleUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const newPhoto: ProjectPhoto = {
-          id: Date.now().toString(),
-          url: reader.result as string,
-          caption: 'Registro de Campo',
-          date: new Date().toLocaleDateString('pt-BR')
-        };
-        onUpdate('photos', [newPhoto, ...project.photos]);
-      };
-      reader.readAsDataURL(file);
-    }
+const ContractsModule: React.FC<{project: Project, onUpdate: (key: keyof Project, data: any) => void}> = ({ project, onUpdate }) => {
+  const [currentFolder, setCurrentFolder] = useState<'root' | 'cliente' | 'empreiteiro'>('root');
+  const [isAdding, setIsAdding] = useState(false);
+  const [form, setForm] = useState({ name: '', url: '' });
+
+  const addContract = () => {
+    if (!form.name || currentFolder === 'root') return;
+    const newContract: Contract = {
+      id: Date.now().toString(),
+      type: currentFolder as 'cliente' | 'empreiteiro',
+      name: form.name.toUpperCase(),
+      url: form.url || '#',
+      date: new Date().toLocaleDateString('pt-BR')
+    };
+    onUpdate('contracts', [...project.contracts, newContract]);
+    setIsAdding(false);
+    setForm({ name: '', url: '' });
   };
 
-  return (
-    <div className="p-8">
-      <div className="flex justify-between items-center mb-8">
-        <h3 className="text-2xl font-black text-slate-900 uppercase tracking-tighter">Galeria de Campo</h3>
-        <label className="bg-amber-500 text-slate-900 font-black px-6 py-3 rounded-xl flex items-center gap-2 uppercase text-[10px] tracking-widest shadow-xl cursor-pointer">
-          <Camera size={18} /> UPLOAD FOTO
-          <input type="file" accept="image/*" className="hidden" onChange={handleUpload} />
-        </label>
+  const filteredContracts = project.contracts.filter(c => c.type === currentFolder);
+
+  if (currentFolder === 'root') {
+    return (
+      <div className="p-8">
+        <h3 className="text-2xl font-black text-slate-900 uppercase tracking-tighter mb-8">Repositório de Contratos</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <FolderCard 
+            title="CONTRATO HLH CLIENTE" 
+            count={project.contracts.filter(c => c.type === 'cliente').length}
+            onClick={() => setCurrentFolder('cliente')}
+          />
+          <FolderCard 
+            title="CONTRATO EMPREITEIROS" 
+            count={project.contracts.filter(c => c.type === 'empreiteiro').length}
+            onClick={() => setCurrentFolder('empreiteiro')}
+          />
+        </div>
       </div>
-      
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        {project.photos.map(photo => (
-          <div key={photo.id} className="aspect-square bg-slate-100 rounded-2xl overflow-hidden group relative">
-            <img src={photo.url} className="w-full h-full object-cover transition-transform group-hover:scale-110" alt="Obra" />
-            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-4">
-               <p className="text-white text-[10px] font-black uppercase tracking-widest">{photo.date}</p>
+    );
+  }
+
+  return (
+    <div className="p-8 animate-in fade-in duration-300">
+      <div className="flex justify-between items-center mb-8">
+        <div>
+          <button 
+            onClick={() => { setCurrentFolder('root'); setIsAdding(false); }}
+            className="text-[10px] font-black text-slate-400 flex items-center gap-1 uppercase tracking-widest mb-2 hover:text-slate-900 transition-colors"
+          >
+            <ChevronLeft size={14} /> Voltar para Pastas
+          </button>
+          <h3 className="text-2xl font-black text-slate-900 uppercase tracking-tighter">
+            {currentFolder === 'cliente' ? 'Contratos HLH Cliente' : 'Contratos Empreiteiros'}
+          </h3>
+        </div>
+        <button 
+          onClick={() => setIsAdding(true)}
+          className="bg-slate-900 text-white font-black px-6 py-3 rounded-xl flex items-center gap-2 uppercase text-[10px] tracking-widest shadow-xl active:scale-95"
+        >
+          <Plus size={18} /> NOVO DOCUMENTO
+        </button>
+      </div>
+
+      {isAdding && (
+        <div className="bg-slate-50 border border-slate-200 rounded-2xl p-6 mb-8 space-y-4 animate-in zoom-in duration-200">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-1">
+              <label className="text-[10px] uppercase text-slate-500 font-black tracking-widest">Nome do Documento</label>
+              <input 
+                type="text" 
+                value={form.name} 
+                onChange={e => setForm({...form, name: e.target.value})} 
+                className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm font-black uppercase outline-none focus:ring-2 focus:ring-amber-500" 
+                placeholder="EX: CONTRATO DE ADESÃO V01" 
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-[10px] uppercase text-slate-500 font-black tracking-widest">Link do Arquivo (URL)</label>
+              <input 
+                type="text" 
+                value={form.url} 
+                onChange={e => setForm({...form, url: e.target.value})} 
+                className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm font-black outline-none focus:ring-2 focus:ring-amber-500" 
+                placeholder="https://drive.google.com/..." 
+              />
             </div>
           </div>
-        ))}
-        {project.photos.length === 0 && <div className="col-span-full text-center py-20 text-slate-300 uppercase tracking-widest text-xs">Sem fotos registradas.</div>}
+          <div className="flex justify-end gap-3 pt-2">
+            <button onClick={() => setIsAdding(false)} className="px-6 py-2 text-slate-400 font-black uppercase text-[10px] tracking-widest">Cancelar</button>
+            <button onClick={addContract} className="bg-amber-500 text-slate-900 px-8 py-3 rounded-xl font-black uppercase text-[10px] tracking-widest shadow-lg">SALVAR ARQUIVO</button>
+          </div>
+        </div>
+      )}
+
+      <div className="space-y-3">
+        {filteredContracts.length === 0 ? (
+          <div className="py-20 text-center text-slate-300 uppercase font-black tracking-widest text-xs border-2 border-dashed border-slate-100 rounded-3xl">Esta pasta está vazia.</div>
+        ) : (
+          filteredContracts.map(c => (
+            <div key={c.id} className="bg-white border border-slate-100 p-4 rounded-2xl flex items-center justify-between hover:border-amber-500 transition-all shadow-sm group">
+              <div className="flex items-center gap-4">
+                <div className="bg-slate-50 p-3 rounded-xl group-hover:bg-amber-100 transition-colors">
+                  <FileText className="text-slate-400 group-hover:text-amber-600" size={20} />
+                </div>
+                <div>
+                  <h4 className="text-sm font-black text-slate-900 uppercase tracking-tight">{c.name}</h4>
+                  <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest">Adicionado em {c.date}</p>
+                </div>
+              </div>
+              <a 
+                href={c.url} 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="p-3 text-slate-300 hover:text-slate-900 hover:bg-slate-50 rounded-xl transition-all"
+              >
+                <ExternalLink size={20} />
+              </a>
+            </div>
+          ))
+        )}
       </div>
     </div>
   );
 };
 
-const ContractsModule: React.FC<{project: Project, onUpdate: (key: keyof Project, data: any) => void}> = ({ project }) => (
-  <div className="p-20 text-center font-black uppercase text-slate-300">Repositório de Contratos HLH (Módulo Jurídico).</div>
+const FolderCard: React.FC<{title: string, count: number, onClick: () => void}> = ({ title, count, onClick }) => (
+  <button 
+    onClick={onClick}
+    className="bg-white border border-slate-200 p-8 rounded-3xl text-left hover:border-amber-500 hover:shadow-xl transition-all group flex items-center justify-between"
+  >
+    <div className="flex items-center gap-6">
+      <div className="bg-amber-500/10 p-5 rounded-2xl group-hover:bg-amber-500 transition-colors">
+        <Folder className="text-amber-600 group-hover:text-slate-900" size={32} />
+      </div>
+      <div>
+        <h4 className="text-lg font-black text-slate-900 uppercase tracking-tighter leading-tight">{title}</h4>
+        <p className="text-xs font-black text-slate-400 uppercase tracking-widest mt-1">{count} DOCUMENTO(S)</p>
+      </div>
+    </div>
+    <ChevronRight className="text-slate-200 group-hover:text-amber-500 transition-colors" size={24} />
+  </button>
 );
 
-const LocationModule: React.FC<{project: Project}> = ({ project }) => (
-  <div className="h-[500px]">
-    <iframe 
-      width="100%" 
-      height="100%" 
-      frameBorder="0" 
-      src={`https://www.google.com/maps?q=${encodeURIComponent(project.location)}&output=embed`} 
-      title="Mapa da Obra"
-    />
-  </div>
-);
+const LocationModule: React.FC<{project: Project, onUpdateLocation: (loc: string) => void}> = ({ project, onUpdateLocation }) => {
+  const [newLoc, setNewLoc] = useState(project.location);
+  const [isEditing, setIsEditing] = useState(false);
+
+  const handleSave = () => {
+    onUpdateLocation(newLoc);
+    setIsEditing(false);
+  };
+
+  return (
+    <div className="flex flex-col h-[600px]">
+      <div className="p-6 bg-slate-50 border-b border-slate-200 flex flex-col md:flex-row items-center gap-4">
+        <div className="flex-1 w-full">
+          <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Localização da Obra (Endereço ou Link Maps)</label>
+          <div className="relative group">
+            <input 
+              type="text" 
+              value={newLoc}
+              onChange={(e) => setNewLoc(e.target.value)}
+              onFocus={() => setIsEditing(true)}
+              className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm font-black pr-12 focus:ring-2 focus:ring-amber-500 outline-none transition-all" 
+              placeholder="Digite o endereço ou cole a URL do Google Maps..." 
+            />
+            <div className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-amber-500 transition-colors">
+              <MapIcon size={20} />
+            </div>
+          </div>
+        </div>
+        {isEditing && (
+          <button 
+            onClick={handleSave}
+            className="w-full md:w-auto mt-2 md:mt-5 bg-slate-900 text-white font-black px-6 py-3 rounded-xl flex items-center justify-center gap-2 uppercase text-[10px] tracking-widest shadow-lg active:scale-95 animate-in slide-in-from-right-4"
+          >
+            <Save size={18} /> ATUALIZAR LOCALIZAÇÃO
+          </button>
+        )}
+      </div>
+      <div className="flex-1 bg-slate-200 relative">
+        <iframe 
+          width="100%" 
+          height="100%" 
+          frameBorder="0" 
+          src={`https://www.google.com/maps?q=${encodeURIComponent(project.location)}&output=embed`} 
+          title="Mapa da Obra"
+          className="grayscale-[0.2] contrast-[1.1]"
+        />
+        <div className="absolute bottom-4 left-4 bg-white/90 backdrop-blur-sm p-3 rounded-xl border border-slate-200 shadow-lg">
+          <p className="text-[10px] font-black text-slate-900 uppercase tracking-widest flex items-center gap-2">
+            <MapPin size={12} className="text-amber-500"/> {project.location}
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 export default ProjectDetail;

@@ -56,6 +56,7 @@ export interface Project {
   status: ProjectStatus;
   location: string;
   progress: number;
+  mainPhoto?: string;
   employees: Employee[];
   reports: DailyReport[];
   purchases: MaterialPurchase[];
