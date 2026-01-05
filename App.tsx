@@ -160,7 +160,7 @@ const App: React.FC = () => {
                 <Plus size={18} /> NOVA OBRA
               </button>
             )}
-            <button className="p-2 text-slate-400 hover:text-slate-900"><Bell size={20}/></button>
+            <button className="p-2 text-slate-400 hover:text-slate-900 transition-colors"><Bell size={20}/></button>
           </div>
         </header>
 
