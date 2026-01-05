@@ -3,8 +3,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { 
   Plus, LayoutDashboard, HardHat, 
   Users, CloudCheck, Loader2, Database, Settings, X, Save, 
-  Link as LinkIcon, AlertCircle, ShieldCheck, Copy, Info, CheckCircle2, Terminal, Smartphone, Search,
-  Briefcase, Home, Play, Package, FolderOpen, Building2
+  Link as LinkIcon, ShieldCheck, Copy, Info, CheckCircle2, Play, Package, FolderOpen, Building2, Search, Briefcase, Home
 } from 'lucide-react';
 import { Project, Employee } from './types';
 import Dashboard from './components/Dashboard';
@@ -217,7 +216,6 @@ const App: React.FC = () => {
         </div>
       </aside>
 
-      {/* Main Container */}
       <main className="flex-1 flex flex-col min-w-0 h-screen overflow-y-auto relative">
         <header className="bg-white/95 backdrop-blur-xl border-b border-slate-200 px-6 py-5 flex items-center justify-between sticky top-0 z-30 shadow-sm">
           <div className="flex items-center gap-3">
@@ -258,8 +256,8 @@ const App: React.FC = () => {
         </div>
       </main>
 
-      {/* Mobile Bottom Nav */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 px-6 py-3 flex items-center justify-between z-[60] shadow-[0_-4px_10px_rgba(0,0,0,0.05)]">
+      {/* Mobile Tab Bar */}
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 px-6 py-3 flex items-center justify-between z-[60] shadow-[0_-4px_10px_rgba(0,0,0,0.05)] safe-pb">
         <BottomTab active={currentView === 'dashboard'} onClick={() => {setCurrentView('dashboard'); setSelectedProjectId(null);}} icon={<Home size={22}/>} label="Home" />
         <BottomTab active={currentView === 'project'} onClick={() => {
           if (projects.length > 0) {
@@ -273,7 +271,6 @@ const App: React.FC = () => {
         <BottomTab active={isSettingsOpen} onClick={() => setIsSettingsOpen(true)} icon={<Settings size={22}/>} label="Config" />
       </nav>
 
-      {/* Settings Modal */}
       {isSettingsOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-slate-900/90 backdrop-blur-md" onClick={() => setIsSettingsOpen(false)} />
@@ -298,7 +295,7 @@ const App: React.FC = () => {
                     <InputField label="Nome da Construtora" value={companyName} onChange={v => setCompanyName(v.toUpperCase())} icon={<Building2 size={20}/>} placeholder="MINHA CONSTRUTORA LTDA" />
                     <div className="p-5 bg-blue-50 border border-blue-100 rounded-3xl flex items-start gap-4">
                        <Info size={20} className="text-blue-500 shrink-0 mt-1" />
-                       <p className="text-[11px] font-medium text-blue-800 leading-relaxed">Este nome aparecerá nos cabeçalhos, na tela de carregamento e nos relatórios gerados.</p>
+                       <p className="text-[11px] font-medium text-blue-800 leading-relaxed">Este nome aparecerá nos cabeçalhos e relatórios.</p>
                     </div>
                   </div>
                 ) : settingsTab === 'supabase' ? (
@@ -316,16 +313,13 @@ const App: React.FC = () => {
                       </div>
                       <div className="space-y-4">
                         <AndroidStep number="1" icon={<FolderOpen size={18}/>} text="Abra o Android Studio e selecione a pasta 'android' do seu projeto." />
-                        <AndroidStep number="2" icon={<Loader2 size={18} className="animate-spin"/>} text="Aguarde o 'Gradle Sync' (barra de progresso no canto inferior) terminar." />
+                        <AndroidStep number="2" icon={<Loader2 size={18} className="animate-spin"/>} text="Aguarde o 'Gradle Sync' terminar." />
                         <AndroidStep number="3" icon={<Package size={18}/>} text="Vá em Build > Build Bundle(s) / APK(s) > Build APK(s)." />
-                        <AndroidStep number="4" icon={<CheckCircle2 size={18}/>} text="Clique em 'Locate' na notificação que aparecerá para pegar o arquivo .apk." />
+                        <AndroidStep number="4" icon={<CheckCircle2 size={18}/>} text="Clique em 'Locate' para pegar o arquivo .apk." />
                       </div>
                     </div>
-
                     <div className="space-y-4">
-                      <p className="text-[11px] font-black text-slate-500 uppercase tracking-widest text-center">Comandos de Terminal (Sincronização)</p>
-                      <Step title="Sempre rode antes de gerar o APK" command="npx cap copy" onCopy={copyText} />
-                      <Step title="Abrir o Android Studio via comando" command="npx cap open android" onCopy={copyText} />
+                      <Step title="Sincronização" command="npx cap copy" onCopy={copyText} />
                     </div>
                   </div>
                 )}

@@ -1,0 +1,9 @@
+
+{
+  "appId": "com.hlh.engenharia",
+  "appName": "HLH Engenharia",
+  "webDir": "dist",
+  "server": {
+    "androidScheme": "https"
+  }
+}
