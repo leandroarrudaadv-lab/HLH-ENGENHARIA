@@ -41,21 +41,21 @@ export const DatabaseService = {
   },
 
   async testConnection(): Promise<{success: boolean, message: string, code?: string}> {
-    if (!supabase) return { success: false, message: "Aguardando configuração de URL/Chave." };
+    if (!supabase) return { success: false, message: "Aguardando URL/Chave." };
     
     try {
       const { error } = await supabase.from('projects').select('id').limit(1);
       
       if (error) {
         if (error.code === '42P01') {
-          return { success: false, message: "Tabelas não encontradas. Vá em 'SQL SETUP'.", code: 'MISSING_TABLES' };
+          return { success: false, message: "Tabelas não encontradas no Supabase.", code: 'MISSING_TABLES' };
         }
-        return { success: false, message: "Erro na chave ou URL: " + error.message, code: error.code };
+        return { success: false, message: "Erro de autenticação: " + error.message, code: error.code };
       }
       
-      return { success: true, message: "Conectado à nuvem Supabase!" };
+      return { success: true, message: "Conexão estabelecida com sucesso!" };
     } catch (e: any) {
-      return { success: false, message: "Falha ao alcançar o servidor.", code: 'FETCH_ERROR' };
+      return { success: false, message: "Erro de rede ao conectar.", code: 'FETCH_ERROR' };
     }
   },
 
@@ -76,7 +76,23 @@ export const DatabaseService = {
 
   async saveProjects(projects: Project[]): Promise<void> {
     if (!supabase) return;
-    const { error } = await supabase.from('projects').upsert(projects, { onConflict: 'id' });
+    // Formatamos os dados para garantir que as chaves batam com as colunas do SQL
+    const formatted = projects.map(p => ({
+      id: p.id,
+      name: p.name,
+      status: p.status,
+      location: p.location,
+      progress: p.progress,
+      mainPhoto: p.mainPhoto, // O Supabase vai mapear se a coluna foi criada com aspas no SQL
+      employees: p.employees,
+      reports: p.reports,
+      purchases: p.purchases,
+      photos: p.photos,
+      presence: p.presence,
+      contracts: p.contracts,
+      documents: p.documents
+    }));
+    const { error } = await supabase.from('projects').upsert(formatted, { onConflict: 'id' });
     if (error) throw error;
   },
 
