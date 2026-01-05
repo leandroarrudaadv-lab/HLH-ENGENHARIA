@@ -1,7 +1,8 @@
 {
-  "name": "Copy of HLH Engenharia - Gestão de Obras",
+  "name": "HLH Engenharia - Gestão de Obras",
   "description": "Plataforma interna para gestão de projetos, RDOs, presença e compras da HLH Engenharia.",
   "requestFramePermissions": [
-    "camera"
+    "camera",
+    "geolocation"
   ]
 }
