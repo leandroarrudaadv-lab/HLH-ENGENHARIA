@@ -215,7 +215,7 @@ const App: React.FC = () => {
             active={currentView === 'employees'} 
             onClick={() => {setCurrentView('employees'); setSelectedProjectId(null);}} 
             icon={<Users size={20}/>} 
-            label="EQUIPE ATIVA" 
+            label="COLABORADORES" 
           />
           
           <div className="pt-10">
@@ -258,7 +258,7 @@ const App: React.FC = () => {
             </div>
             <h2 className="text-2xl font-black text-slate-900 uppercase tracking-tighter italic">
               {currentView === 'dashboard' ? 'Centro de Operações' : 
-               currentView === 'employees' ? 'Gestão de Capital Humano' : 
+               currentView === 'employees' ? 'Gestão de Colaboradores' : 
                selectedProject?.name}
             </h2>
           </div>

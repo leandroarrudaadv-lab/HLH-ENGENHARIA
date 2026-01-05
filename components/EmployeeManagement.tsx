@@ -58,7 +58,7 @@ const EmployeeManagement: React.FC<EmployeeManagementProps> = ({ employees, setE
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-10">
         <div>
           <h1 className="text-5xl font-black text-slate-900 tracking-tighter uppercase leading-none mb-1">Colaboradores HLH</h1>
-          <p className="text-slate-500 font-black uppercase text-[10px] tracking-[0.2em]">Controle central de ativos e equipes</p>
+          <p className="text-slate-500 font-black uppercase text-[10px] tracking-[0.2em]">Controle central de colaboradores e alocações</p>
         </div>
         <button 
           onClick={() => setIsAdding(!isAdding)}
