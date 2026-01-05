@@ -3,7 +3,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { 
   Plus, LayoutDashboard, HardHat, 
   Users, CloudCheck, Loader2, Database, Settings, X, Save, 
-  Link as LinkIcon, ShieldCheck, Copy, Info, CheckCircle2, Play, Package, FolderOpen, Building2, Search, Briefcase, Home, Terminal, DatabaseBackup
+  Link as LinkIcon, ShieldCheck, Copy, Info, CheckCircle2, Play, Package, FolderOpen, Building2, Search, Briefcase, Home, Terminal, RefreshCw, AlertTriangle
 } from 'lucide-react';
 import { Project, Employee } from './types';
 import Dashboard from './components/Dashboard';
@@ -11,6 +11,8 @@ import ProjectDetail from './components/ProjectDetail';
 import NewProjectModal from './components/NewProjectModal';
 import EmployeeManagement from './components/EmployeeManagement';
 import { DatabaseService } from './services/databaseService';
+
+const APP_VERSION = "1.0.2";
 
 const App: React.FC = () => {
   const [projects, setProjects] = useState<Project[]>([]);
@@ -52,7 +54,6 @@ const App: React.FC = () => {
         }
       }
       
-      // Fallback para local se não houver nuvem
       const lp = localStorage.getItem('hlh_projects_cloud_v1') ? JSON.parse(localStorage.getItem('hlh_projects_cloud_v1')!) : [];
       const le = localStorage.getItem('hlh_employees_cloud_v1') ? JSON.parse(localStorage.getItem('hlh_employees_cloud_v1')!) : [];
       setProjects(lp);
@@ -80,7 +81,6 @@ const App: React.FC = () => {
 
   useEffect(() => {
     if (isLoading || !DatabaseService.isConfigured() || dbStatus.code === 'MISSING_TABLES') {
-      // Se não tem nuvem, salva no localstorage apenas
       localStorage.setItem('hlh_projects_cloud_v1', JSON.stringify(projects));
       localStorage.setItem('hlh_employees_cloud_v1', JSON.stringify(globalEmployees));
       return;
@@ -115,7 +115,13 @@ const App: React.FC = () => {
 
   const copyText = (text: string) => {
     navigator.clipboard.writeText(text);
-    alert("Copiado para a área de transferência!");
+    alert("Copiado!");
+  };
+
+  const handleForceReload = () => {
+    if(confirm("Deseja recarregar o app para aplicar mudanças?")) {
+      window.location.reload();
+    }
   };
 
   const addProject = (name: string, location: string) => {
@@ -150,7 +156,7 @@ const App: React.FC = () => {
   };
 
   const supabaseSqlScript = `
--- TABELA DE PROJETOS
+-- TABELAS HLH ENGENHARIA
 create table if not exists projects (
   id text primary key,
   name text not null,
@@ -168,7 +174,6 @@ create table if not exists projects (
   created_at timestamp with time zone default timezone('utc'::text, now())
 );
 
--- TABELA DE COLABORADORES
 create table if not exists employees (
   id text primary key,
   name text not null,
@@ -179,7 +184,6 @@ create table if not exists employees (
   created_at timestamp with time zone default timezone('utc'::text, now())
 );
 
--- DESABILITAR RLS PARA TESTES (OPCIONAL - MAIS FÁCIL PARA COMEÇAR)
 alter table projects disable row level security;
 alter table employees disable row level security;
   `;
@@ -192,7 +196,7 @@ alter table employees disable row level security;
         </div>
         <h2 className="text-2xl font-black text-white uppercase tracking-tighter italic">{companyName}</h2>
         <div className="flex items-center gap-3 text-amber-500/50 font-black text-xs uppercase tracking-widest">
-          <Loader2 size={16} className="animate-spin" /> Conectando...
+          <Loader2 size={16} className="animate-spin" /> v{APP_VERSION}
         </div>
       </div>
     );
@@ -294,6 +298,17 @@ alter table employees disable row level security;
         </header>
 
         <div className="p-4 md:p-8">
+          {dbStatus.code === 'MISSING_TABLES' && (
+             <div className="mb-8 p-6 bg-amber-50 border-2 border-dashed border-amber-200 rounded-[2rem] flex flex-col md:flex-row items-center gap-6">
+                <div className="bg-amber-500 p-4 rounded-2xl text-slate-900"><AlertTriangle size={32} /></div>
+                <div className="flex-1 text-center md:text-left">
+                   <h4 className="text-sm font-black text-amber-900 uppercase tracking-widest mb-1">Configuração Incompleta</h4>
+                   <p className="text-[11px] text-amber-700 font-medium">As tabelas não foram encontradas no Supabase. O app está rodando apenas no celular (offline).</p>
+                </div>
+                <button onClick={() => {setIsSettingsOpen(true); setSettingsTab('sql');}} className="bg-slate-900 text-white px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg">RESOLVER AGORA</button>
+             </div>
+          )}
+
           {currentView === 'project' && selectedProject ? (
             <ProjectDetail project={selectedProject} onUpdate={updateProject} onDelete={() => deleteProject(selectedProject.id)} onBack={() => setCurrentView('dashboard')} />
           ) : currentView === 'employees' ? (
@@ -326,16 +341,19 @@ alter table employees disable row level security;
              <div className="bg-slate-900 p-6 md:p-8 flex items-center justify-between text-white">
                 <div className="flex items-center gap-4">
                   <div className="bg-amber-500 p-3 rounded-2xl text-slate-900"><Settings size={24} /></div>
-                  <h2 className="text-xl md:text-2xl font-black uppercase tracking-tighter italic">Ajustes do App</h2>
+                  <h2 className="text-xl md:text-2xl font-black uppercase tracking-tighter italic">Ajustes</h2>
                 </div>
-                <button onClick={() => setIsSettingsOpen(false)} className="p-2 bg-white/10 rounded-full"><X size={24} /></button>
+                <div className="flex items-center gap-2">
+                   <button onClick={handleForceReload} className="p-2 bg-white/10 rounded-full text-amber-500" title="Recarregar App"><RefreshCw size={20} /></button>
+                   <button onClick={() => setIsSettingsOpen(false)} className="p-2 bg-white/10 rounded-full"><X size={24} /></button>
+                </div>
              </div>
 
              <div className="flex border-b border-slate-100 overflow-x-auto no-scrollbar">
                <button onClick={() => setSettingsTab('geral')} className={`flex-1 py-4 px-4 whitespace-nowrap text-[10px] font-black uppercase tracking-widest ${settingsTab === 'geral' ? 'text-amber-500 border-b-4 border-amber-500 bg-amber-50/20' : 'text-slate-400'}`}>GERAL</button>
                <button onClick={() => setSettingsTab('supabase')} className={`flex-1 py-4 px-4 whitespace-nowrap text-[10px] font-black uppercase tracking-widest ${settingsTab === 'supabase' ? 'text-amber-500 border-b-4 border-amber-500 bg-amber-50/20' : 'text-slate-400'}`}>CONEXÃO</button>
                <button onClick={() => setSettingsTab('sql')} className={`flex-1 py-4 px-4 whitespace-nowrap text-[10px] font-black uppercase tracking-widest ${settingsTab === 'sql' ? 'text-amber-500 border-b-4 border-amber-500 bg-amber-50/20' : 'text-slate-400'}`}>SQL SETUP</button>
-               <button onClick={() => setSettingsTab('apk')} className={`flex-1 py-4 px-4 whitespace-nowrap text-[10px] font-black uppercase tracking-widest ${settingsTab === 'apk' ? 'text-amber-500 border-b-4 border-amber-500 bg-amber-50/20' : 'text-slate-400'}`}>GERAR APK</button>
+               <button onClick={() => setSettingsTab('apk')} className={`flex-1 py-4 px-4 whitespace-nowrap text-[10px] font-black uppercase tracking-widest ${settingsTab === 'apk' ? 'text-amber-500 border-b-4 border-amber-500 bg-amber-50/20' : 'text-slate-400'}`}>REBUILD</button>
              </div>
              
              <div className="p-6 md:p-8 overflow-y-auto no-scrollbar space-y-6">
@@ -344,14 +362,14 @@ alter table employees disable row level security;
                     <InputField label="Nome da Construtora" value={companyName} onChange={v => setCompanyName(v.toUpperCase())} icon={<Building2 size={20}/>} placeholder="MINHA CONSTRUTORA LTDA" />
                     <div className="p-5 bg-blue-50 border border-blue-100 rounded-3xl flex items-start gap-4">
                        <Info size={20} className="text-blue-500 shrink-0 mt-1" />
-                       <p className="text-[11px] font-medium text-blue-800 leading-relaxed">O nome cadastrado será sincronizado entre todos os dispositivos conectados à mesma conta Supabase.</p>
+                       <p className="text-[11px] font-medium text-blue-800 leading-relaxed">Os dados são sincronizados automaticamente entre todos os dispositivos conectados.</p>
                     </div>
                   </div>
                 ) : settingsTab === 'supabase' ? (
                   <div className="space-y-6">
-                    <InputField label="Supabase Project URL" value={dbUrl} onChange={setDbUrl} icon={<LinkIcon size={20}/>} placeholder="https://..." />
-                    <InputField label="Supabase Anon Key" value={dbKey} onChange={setDbKey} icon={<ShieldCheck size={20}/>} placeholder="Public Key..." isPassword />
-                    <button onClick={handleSaveConfig} className="w-full bg-slate-900 text-white font-black py-5 rounded-2xl flex items-center justify-center gap-3 uppercase text-xs tracking-widest shadow-xl"><Save size={20} className="text-amber-500"/> SALVAR E CONECTAR</button>
+                    <InputField label="Supabase URL" value={dbUrl} onChange={setDbUrl} icon={<LinkIcon size={20}/>} placeholder="https://..." />
+                    <InputField label="Supabase Key" value={dbKey} onChange={setDbKey} icon={<ShieldCheck size={20}/>} placeholder="Public Anon Key..." isPassword />
+                    <button onClick={handleSaveConfig} className="w-full bg-slate-900 text-white font-black py-5 rounded-2xl flex items-center justify-center gap-3 uppercase text-xs tracking-widest shadow-xl"><Save size={20} className="text-amber-500"/> CONECTAR NUVEM</button>
                     {dbStatus.message && (
                       <div className={`p-4 rounded-2xl text-[10px] font-black uppercase text-center ${dbStatus.success ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
                         {dbStatus.message}
@@ -363,14 +381,10 @@ alter table employees disable row level security;
                     <div className="bg-amber-50 p-6 rounded-[2rem] border border-amber-200">
                       <div className="flex items-center gap-3 mb-4 text-amber-600">
                         <Terminal size={24} />
-                        <h4 className="text-sm font-black uppercase tracking-widest">Configurar Tabelas</h4>
+                        <h4 className="text-sm font-black uppercase tracking-widest">Script do Banco</h4>
                       </div>
-                      <p className="text-[11px] text-amber-800 leading-relaxed mb-6 font-medium">
-                        Para o "Preview" e o "Celular" falarem a mesma língua, você deve criar as tabelas no Supabase:
-                        <br/><br/>
-                        1. Vá no menu **SQL Editor** no site do Supabase.<br/>
-                        2. Clique em **New Query**.<br/>
-                        3. Cole o código abaixo e clique em **RUN**.
+                      <p className="text-[11px] text-amber-800 leading-relaxed mb-6 font-medium font-bold">
+                        EXECUTE ISTO NO SUPABASE PARA ATIVAR O PREVIEW:
                       </p>
                       <div className="relative group">
                         <pre className="bg-slate-900 text-amber-400 p-5 rounded-2xl text-[9px] font-mono overflow-x-auto max-h-[200px] border-2 border-slate-800">
@@ -390,21 +404,22 @@ alter table employees disable row level security;
                     <div className="bg-slate-900 p-6 rounded-[2rem] text-white border-2 border-amber-500/30">
                       <div className="flex items-center gap-4 mb-4">
                         <div className="p-3 bg-amber-500 rounded-2xl text-slate-900"><Play size={24} fill="currentColor"/></div>
-                        <h4 className="text-lg font-black uppercase tracking-tighter italic">Fluxo Android Studio</h4>
+                        <h4 className="text-lg font-black uppercase tracking-tighter italic">Fluxo de Atualização</h4>
                       </div>
                       <div className="space-y-4">
-                        <AndroidStep number="1" icon={<FolderOpen size={18}/>} text="Abra o Android Studio e selecione a pasta 'android' do seu projeto." />
-                        <AndroidStep number="2" icon={<Loader2 size={18} className="animate-spin"/>} text="Aguarde o 'Gradle Sync' terminar." />
-                        <AndroidStep number="3" icon={<Package size={18}/>} text="Vá em Build > Build Bundle(s) / APK(s) > Build APK(s)." />
-                        <AndroidStep number="4" icon={<CheckCircle2 size={18}/>} text="Clique em 'Locate' para pegar o arquivo .apk." />
+                        <AndroidStep number="1" icon={<FolderOpen size={18}/>} text="No PowerShell: npm run build e npx cap sync" />
+                        <AndroidStep number="2" icon={<RefreshCw size={18} />} text="No Android Studio: Build > Clean Project (MUITO IMPORTANTE!)" />
+                        <AndroidStep number="3" icon={<Package size={18}/>} text="No Android Studio: Build > Build APK(s)." />
+                        <AndroidStep number="4" icon={<CheckCircle2 size={18}/>} text="Desinstale o app antigo do celular antes de colocar o novo." />
                       </div>
-                    </div>
-                    <div className="space-y-4">
-                      <Step title="Instalação" command="npm install" onCopy={copyText} />
-                      <Step title="Sincronização" command="npm run build && npx cap sync" onCopy={copyText} />
                     </div>
                   </div>
                 )}
+                
+                <div className="pt-6 border-t border-slate-100 flex justify-between items-center opacity-40">
+                   <span className="text-[9px] font-black uppercase tracking-widest">Build v{APP_VERSION}</span>
+                   <span className="text-[9px] font-black uppercase tracking-widest">HLH Engenharia Digital</span>
+                </div>
              </div>
           </div>
         </div>
@@ -444,16 +459,6 @@ const InputField: React.FC<{label: string, value: string, onChange: (v: string) 
     <div className="relative group">
       <div className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-amber-500 transition-colors">{icon}</div>
       <input type={isPassword ? "password" : "text"} value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder} className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl pl-14 pr-6 py-4 font-black text-sm outline-none focus:border-amber-500 focus:bg-white transition-all" />
-    </div>
-  </div>
-);
-
-const Step: React.FC<{title: string, command: string, onCopy: (c: string) => void}> = ({ title, command, onCopy }) => (
-  <div className="space-y-2">
-    <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">{title}</p>
-    <div className="bg-white p-4 rounded-xl flex items-center justify-between border-2 border-slate-100 group">
-      <code className="text-slate-900 font-mono text-[10px] overflow-hidden truncate mr-2">{command}</code>
-      <button onClick={() => onCopy(command)} className="text-slate-400 hover:text-amber-500 shrink-0"><Copy size={16}/></button>
     </div>
   </div>
 );

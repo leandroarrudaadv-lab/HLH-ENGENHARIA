@@ -12,14 +12,14 @@ let supabase: SupabaseClient | null = null;
 
 export const initSupabase = () => {
   const configStr = localStorage.getItem(STORAGE_KEYS.CONFIG);
-  let url = (window as any).process?.env?.SUPABASE_URL || '';
-  let key = (window as any).process?.env?.SUPABASE_ANON_KEY || '';
+  let url = '';
+  let key = '';
 
   if (configStr) {
     try {
       const config = JSON.parse(configStr);
-      url = config.url || url;
-      key = config.key || key;
+      url = config.url || '';
+      key = config.key || '';
     } catch (e) {
       console.error("Erro ao ler config", e);
     }
@@ -33,6 +33,7 @@ export const initSupabase = () => {
   return false;
 };
 
+// Auto-inicializar
 initSupabase();
 
 export const DatabaseService = {
@@ -41,22 +42,21 @@ export const DatabaseService = {
   },
 
   async testConnection(): Promise<{success: boolean, message: string, code?: string}> {
-    if (!supabase) return { success: false, message: "URL ou Chave não configuradas." };
+    if (!supabase) return { success: false, message: "URL ou Chave faltando." };
     
     try {
-      // Tenta ler a tabela de projetos para ver se existe
       const { error } = await supabase.from('projects').select('id').limit(1);
       
       if (error) {
         if (error.code === '42P01') {
-          return { success: false, message: "Tabelas não encontradas no Supabase.", code: 'MISSING_TABLES' };
+          return { success: false, message: "Tabelas não criadas. Veja 'SQL SETUP'.", code: 'MISSING_TABLES' };
         }
-        return { success: false, message: error.message, code: error.code };
+        return { success: false, message: "Erro: " + error.message, code: error.code };
       }
       
-      return { success: true, message: "Conexão estabelecida com sucesso!" };
+      return { success: true, message: "Conectado à nuvem Supabase!" };
     } catch (e: any) {
-      return { success: false, message: "Falha crítica na conexão.", code: 'FETCH_ERROR' };
+      return { success: false, message: "Erro de conexão rede.", code: 'FETCH_ERROR' };
     }
   },
 
@@ -70,16 +70,13 @@ export const DatabaseService = {
       const data = localStorage.getItem(STORAGE_KEYS.PROJECTS);
       return data ? JSON.parse(data) : [];
     }
-    const { data, error } = await supabase.from('projects').select('*');
+    const { data, error } = await supabase.from('projects').select('*').order('created_at', { ascending: false });
     if (error) throw error;
     return data || [];
   },
 
   async saveProjects(projects: Project[]): Promise<void> {
-    if (!supabase) {
-      localStorage.setItem(STORAGE_KEYS.PROJECTS, JSON.stringify(projects));
-      return;
-    }
+    if (!supabase) return;
     const { error } = await supabase.from('projects').upsert(projects, { onConflict: 'id' });
     if (error) throw error;
   },
@@ -95,10 +92,7 @@ export const DatabaseService = {
   },
 
   async saveEmployees(employees: Employee[]): Promise<void> {
-    if (!supabase) {
-      localStorage.setItem(STORAGE_KEYS.EMPLOYEES, JSON.stringify(employees));
-      return;
-    }
+    if (!supabase) return;
     const { error } = await supabase.from('employees').upsert(employees, { onConflict: 'id' });
     if (error) throw error;
   }
