@@ -3,7 +3,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { 
   Plus, LayoutDashboard, HardHat, 
   Users, CloudCheck, Loader2, Database, Settings, X, Save, 
-  Link as LinkIcon, ShieldCheck, Copy, Info, CheckCircle2, Play, Package, FolderOpen, Building2, Search, Briefcase, Home
+  Link as LinkIcon, ShieldCheck, Copy, Info, CheckCircle2, Play, Package, FolderOpen, Building2, Search, Briefcase, Home, Terminal, DatabaseBackup
 } from 'lucide-react';
 import { Project, Employee } from './types';
 import Dashboard from './components/Dashboard';
@@ -21,7 +21,7 @@ const App: React.FC = () => {
   const selectedProject = projects.find(p => p.id === selectedProjectId);
   const [isNewProjectModalOpen, setIsNewProjectModalOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [settingsTab, setSettingsTab] = useState<'geral' | 'supabase' | 'apk'>('geral');
+  const [settingsTab, setSettingsTab] = useState<'geral' | 'supabase' | 'sql' | 'apk'>('geral');
   const [sidebarSearch, setSidebarSearch] = useState('');
   
   const [isLoading, setIsLoading] = useState(true);
@@ -40,21 +40,23 @@ const App: React.FC = () => {
       if (DatabaseService.isConfigured()) {
         const test = await DatabaseService.testConnection();
         setDbStatus(test);
-        if (!test.success) {
-          const lp = localStorage.getItem('hlh_projects_cloud_v1') ? JSON.parse(localStorage.getItem('hlh_projects_cloud_v1')!) : [];
-          const le = localStorage.getItem('hlh_employees_cloud_v1') ? JSON.parse(localStorage.getItem('hlh_employees_cloud_v1')!) : [];
-          setProjects(lp);
-          setGlobalEmployees(le);
+        if (test.success) {
+          const [loadedProjects, loadedEmployees] = await Promise.all([
+            DatabaseService.getProjects(),
+            DatabaseService.getEmployees()
+          ]);
+          setProjects(loadedProjects);
+          setGlobalEmployees(loadedEmployees);
           setIsLoading(false);
           return;
         }
       }
-      const [loadedProjects, loadedEmployees] = await Promise.all([
-        DatabaseService.getProjects(),
-        DatabaseService.getEmployees()
-      ]);
-      setProjects(loadedProjects);
-      setGlobalEmployees(loadedEmployees);
+      
+      // Fallback para local se não houver nuvem
+      const lp = localStorage.getItem('hlh_projects_cloud_v1') ? JSON.parse(localStorage.getItem('hlh_projects_cloud_v1')!) : [];
+      const le = localStorage.getItem('hlh_employees_cloud_v1') ? JSON.parse(localStorage.getItem('hlh_employees_cloud_v1')!) : [];
+      setProjects(lp);
+      setGlobalEmployees(le);
     } catch (error: any) {
       console.error("Erro ao carregar dados:", error);
     } finally {
@@ -77,7 +79,13 @@ const App: React.FC = () => {
   }, [companyName]);
 
   useEffect(() => {
-    if (isLoading || !DatabaseService.isConfigured() || dbStatus.code === 'MISSING_TABLES') return;
+    if (isLoading || !DatabaseService.isConfigured() || dbStatus.code === 'MISSING_TABLES') {
+      // Se não tem nuvem, salva no localstorage apenas
+      localStorage.setItem('hlh_projects_cloud_v1', JSON.stringify(projects));
+      localStorage.setItem('hlh_employees_cloud_v1', JSON.stringify(globalEmployees));
+      return;
+    }
+    
     const syncData = async () => {
       setIsSyncing(true);
       try {
@@ -86,7 +94,7 @@ const App: React.FC = () => {
           DatabaseService.saveEmployees(globalEmployees)
         ]);
       } catch (error: any) {
-        console.error(error);
+        console.error("Erro na sincronização:", error);
       } finally {
         setTimeout(() => setIsSyncing(false), 500);
       }
@@ -107,7 +115,7 @@ const App: React.FC = () => {
 
   const copyText = (text: string) => {
     navigator.clipboard.writeText(text);
-    alert("Comando copiado!");
+    alert("Copiado para a área de transferência!");
   };
 
   const addProject = (name: string, location: string) => {
@@ -125,7 +133,7 @@ const App: React.FC = () => {
       contracts: [],
       documents: []
     };
-    setProjects(prev => [...prev, newProj]);
+    setProjects(prev => [newProj, ...prev]);
     setIsNewProjectModalOpen(false);
     setCurrentView('dashboard');
   };
@@ -140,6 +148,41 @@ const App: React.FC = () => {
       if (selectedProjectId === id) setCurrentView('dashboard');
     }
   };
+
+  const supabaseSqlScript = `
+-- TABELA DE PROJETOS
+create table if not exists projects (
+  id text primary key,
+  name text not null,
+  status text,
+  location text,
+  progress int,
+  mainPhoto text,
+  employees jsonb default '[]',
+  reports jsonb default '[]',
+  purchases jsonb default '[]',
+  photos jsonb default '[]',
+  presence jsonb default '[]',
+  contracts jsonb default '[]',
+  documents jsonb default '[]',
+  created_at timestamp with time zone default timezone('utc'::text, now())
+);
+
+-- TABELA DE COLABORADORES
+create table if not exists employees (
+  id text primary key,
+  name text not null,
+  role text,
+  active boolean default true,
+  dailyRate numeric,
+  projectId text,
+  created_at timestamp with time zone default timezone('utc'::text, now())
+);
+
+-- DESABILITAR RLS PARA TESTES (OPCIONAL - MAIS FÁCIL PARA COMEÇAR)
+alter table projects disable row level security;
+alter table employees disable row level security;
+  `;
 
   if (isLoading) {
     return (
@@ -157,7 +200,7 @@ const App: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-slate-100 flex flex-col md:flex-row font-['Inter'] pb-20 md:pb-0">
-      {/* Desktop Sidebar */}
+      {/* Sidebar Desktop */}
       <aside className="hidden md:flex flex-col w-80 bg-slate-900 text-white p-8 sticky top-0 h-screen shadow-2xl z-40 overflow-hidden">
         <div className="mb-10 flex items-center gap-4 cursor-pointer" onClick={() => {setCurrentView('dashboard'); setSelectedProjectId(null);}}>
           <div className="bg-amber-500 p-3 rounded-2xl shadow-lg shadow-amber-500/20">
@@ -233,7 +276,12 @@ const App: React.FC = () => {
           </div>
 
           <div className="flex items-center gap-3">
-            {isSyncing && <Loader2 size={16} className="text-amber-500 animate-spin" />}
+            {isSyncing && (
+              <div className="flex items-center gap-2 px-3 py-1 bg-amber-50 rounded-full border border-amber-100">
+                <Loader2 size={12} className="text-amber-500 animate-spin" />
+                <span className="text-[8px] font-black text-amber-600 uppercase tracking-widest">Sincronizando</span>
+              </div>
+            )}
             {currentView === 'dashboard' && (
               <button 
                 onClick={() => setIsNewProjectModalOpen(true)}
@@ -285,7 +333,8 @@ const App: React.FC = () => {
 
              <div className="flex border-b border-slate-100 overflow-x-auto no-scrollbar">
                <button onClick={() => setSettingsTab('geral')} className={`flex-1 py-4 px-4 whitespace-nowrap text-[10px] font-black uppercase tracking-widest ${settingsTab === 'geral' ? 'text-amber-500 border-b-4 border-amber-500 bg-amber-50/20' : 'text-slate-400'}`}>GERAL</button>
-               <button onClick={() => setSettingsTab('supabase')} className={`flex-1 py-4 px-4 whitespace-nowrap text-[10px] font-black uppercase tracking-widest ${settingsTab === 'supabase' ? 'text-amber-500 border-b-4 border-amber-500 bg-amber-50/20' : 'text-slate-400'}`}>CLOUD SUPABASE</button>
+               <button onClick={() => setSettingsTab('supabase')} className={`flex-1 py-4 px-4 whitespace-nowrap text-[10px] font-black uppercase tracking-widest ${settingsTab === 'supabase' ? 'text-amber-500 border-b-4 border-amber-500 bg-amber-50/20' : 'text-slate-400'}`}>CONEXÃO</button>
+               <button onClick={() => setSettingsTab('sql')} className={`flex-1 py-4 px-4 whitespace-nowrap text-[10px] font-black uppercase tracking-widest ${settingsTab === 'sql' ? 'text-amber-500 border-b-4 border-amber-500 bg-amber-50/20' : 'text-slate-400'}`}>SQL SETUP</button>
                <button onClick={() => setSettingsTab('apk')} className={`flex-1 py-4 px-4 whitespace-nowrap text-[10px] font-black uppercase tracking-widest ${settingsTab === 'apk' ? 'text-amber-500 border-b-4 border-amber-500 bg-amber-50/20' : 'text-slate-400'}`}>GERAR APK</button>
              </div>
              
@@ -295,14 +344,46 @@ const App: React.FC = () => {
                     <InputField label="Nome da Construtora" value={companyName} onChange={v => setCompanyName(v.toUpperCase())} icon={<Building2 size={20}/>} placeholder="MINHA CONSTRUTORA LTDA" />
                     <div className="p-5 bg-blue-50 border border-blue-100 rounded-3xl flex items-start gap-4">
                        <Info size={20} className="text-blue-500 shrink-0 mt-1" />
-                       <p className="text-[11px] font-medium text-blue-800 leading-relaxed">Este nome aparecerá nos cabeçalhos e relatórios.</p>
+                       <p className="text-[11px] font-medium text-blue-800 leading-relaxed">O nome cadastrado será sincronizado entre todos os dispositivos conectados à mesma conta Supabase.</p>
                     </div>
                   </div>
                 ) : settingsTab === 'supabase' ? (
                   <div className="space-y-6">
-                    <InputField label="Project URL" value={dbUrl} onChange={setDbUrl} icon={<LinkIcon size={20}/>} placeholder="https://..." />
-                    <InputField label="Anon Key" value={dbKey} onChange={setDbKey} icon={<ShieldCheck size={20}/>} placeholder="Public Key..." isPassword />
-                    <button onClick={handleSaveConfig} className="w-full bg-slate-900 text-white font-black py-5 rounded-2xl flex items-center justify-center gap-3 uppercase text-xs tracking-widest shadow-xl"><Save size={20} className="text-amber-500"/> SALVAR CONEXÃO</button>
+                    <InputField label="Supabase Project URL" value={dbUrl} onChange={setDbUrl} icon={<LinkIcon size={20}/>} placeholder="https://..." />
+                    <InputField label="Supabase Anon Key" value={dbKey} onChange={setDbKey} icon={<ShieldCheck size={20}/>} placeholder="Public Key..." isPassword />
+                    <button onClick={handleSaveConfig} className="w-full bg-slate-900 text-white font-black py-5 rounded-2xl flex items-center justify-center gap-3 uppercase text-xs tracking-widest shadow-xl"><Save size={20} className="text-amber-500"/> SALVAR E CONECTAR</button>
+                    {dbStatus.message && (
+                      <div className={`p-4 rounded-2xl text-[10px] font-black uppercase text-center ${dbStatus.success ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                        {dbStatus.message}
+                      </div>
+                    )}
+                  </div>
+                ) : settingsTab === 'sql' ? (
+                  <div className="space-y-6">
+                    <div className="bg-amber-50 p-6 rounded-[2rem] border border-amber-200">
+                      <div className="flex items-center gap-3 mb-4 text-amber-600">
+                        <Terminal size={24} />
+                        <h4 className="text-sm font-black uppercase tracking-widest">Configurar Tabelas</h4>
+                      </div>
+                      <p className="text-[11px] text-amber-800 leading-relaxed mb-6 font-medium">
+                        Para o "Preview" e o "Celular" falarem a mesma língua, você deve criar as tabelas no Supabase:
+                        <br/><br/>
+                        1. Vá no menu **SQL Editor** no site do Supabase.<br/>
+                        2. Clique em **New Query**.<br/>
+                        3. Cole o código abaixo e clique em **RUN**.
+                      </p>
+                      <div className="relative group">
+                        <pre className="bg-slate-900 text-amber-400 p-5 rounded-2xl text-[9px] font-mono overflow-x-auto max-h-[200px] border-2 border-slate-800">
+                          {supabaseSqlScript}
+                        </pre>
+                        <button 
+                          onClick={() => copyText(supabaseSqlScript)}
+                          className="absolute top-4 right-4 bg-amber-500 text-slate-900 p-2 rounded-xl shadow-lg hover:scale-110 transition-all"
+                        >
+                          <Copy size={16} />
+                        </button>
+                      </div>
+                    </div>
                   </div>
                 ) : (
                   <div className="space-y-8 pb-10">
