@@ -22,8 +22,9 @@ const App: React.FC = () => {
   const [isNewProjectModalOpen, setIsNewProjectModalOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
 
+  // Carregar dados
   useEffect(() => {
-    const saved = localStorage.getItem('hlh_projects_v2');
+    const saved = localStorage.getItem('hlh_core_data_v3');
     if (saved) {
       setProjects(JSON.parse(saved));
     } else {
@@ -31,9 +32,10 @@ const App: React.FC = () => {
     }
   }, []);
 
+  // Salvar sempre que houver mudança
   useEffect(() => {
     if (projects.length > 0) {
-      localStorage.setItem('hlh_projects_v2', JSON.stringify(projects));
+      localStorage.setItem('hlh_core_data_v3', JSON.stringify(projects));
     }
   }, [projects]);
 
@@ -65,7 +67,7 @@ const App: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-slate-100 flex flex-col md:flex-row">
-      {/* Sidebar */}
+      {/* Sidebar Desktop */}
       <aside className="hidden md:flex flex-col w-64 bg-slate-900 text-white p-6 sticky top-0 h-screen shadow-2xl">
         <div className="mb-10 flex items-center gap-3">
           <div className="bg-amber-500 p-2 rounded-xl">
@@ -80,15 +82,15 @@ const App: React.FC = () => {
         <nav className="space-y-2 flex-1 font-black">
           <button 
             onClick={() => setSelectedProjectId(null)}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all uppercase text-xs tracking-widest ${!selectedProjectId ? 'bg-amber-500 text-slate-900' : 'hover:bg-slate-800 text-slate-400'}`}
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all uppercase text-xs tracking-widest ${!selectedProjectId ? 'bg-amber-500 text-slate-900 shadow-lg' : 'hover:bg-slate-800 text-slate-400'}`}
           >
             <LayoutDashboard size={20} />
-            DASHBOARD
+            PAINEL GERAL
           </button>
           
-          <div className="pt-6 pb-2">
-            <p className="text-[10px] text-slate-600 font-black uppercase px-4 mb-4 tracking-[0.3em]">Obras em Foco</p>
-            <div className="space-y-1">
+          <div className="pt-6">
+            <p className="text-[10px] text-slate-600 font-black uppercase px-4 mb-4 tracking-[0.3em]">Obras Recentes</p>
+            <div className="space-y-1 overflow-y-auto max-h-[50vh] no-scrollbar">
               {projects.map(p => (
                 <button
                   key={p.id}
@@ -104,12 +106,15 @@ const App: React.FC = () => {
         </nav>
       </aside>
 
-      {/* Main Content */}
+      {/* Main Area */}
       <main className="flex-1 flex flex-col min-w-0">
         <header className="bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between sticky top-0 z-50">
           <div className="flex items-center gap-4">
+            <div className="md:hidden bg-amber-500 p-1.5 rounded-lg">
+               <HardHat size={20} className="text-slate-900" />
+            </div>
             <h2 className="text-lg font-black text-slate-900 uppercase tracking-tighter">
-              {selectedProjectId ? selectedProject?.name : 'HLH - Painel Geral'}
+              {selectedProjectId ? selectedProject?.name : 'Gestão HLH'}
             </h2>
           </div>
 
@@ -122,6 +127,7 @@ const App: React.FC = () => {
                 <Plus size={18} /> NOVA OBRA
               </button>
             )}
+            <button className="p-2 text-slate-400 hover:text-slate-900"><Bell size={20}/></button>
           </div>
         </header>
 
@@ -133,7 +139,9 @@ const App: React.FC = () => {
               onBack={() => setSelectedProjectId(null)} 
             />
           ) : (
-            <Dashboard projects={filteredProjects} onSelect={setSelectedProjectId} />
+            <div className="max-w-7xl mx-auto">
+              <Dashboard projects={filteredProjects} onSelect={setSelectedProjectId} />
+            </div>
           )}
         </div>
       </main>

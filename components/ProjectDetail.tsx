@@ -3,9 +3,9 @@ import React, { useState } from 'react';
 import { Project, DailyReport, MaterialPurchase, PresenceRecord, ProjectPhoto, Contract, Employee } from '../types';
 import { 
   Camera, FileText, Users, ShoppingCart, 
-  Plus, Calendar, Sun, Cloud, User, 
+  Plus, Calendar, User, 
   Trash2, ExternalLink, MapPin, Briefcase, 
-  ChevronRight, ArrowLeft, HardHat, Printer, Check, ClipboardList
+  ChevronRight, ArrowLeft, Printer, Check, ClipboardList
 } from 'lucide-react';
 
 interface ProjectDetailProps {
@@ -14,18 +14,18 @@ interface ProjectDetailProps {
   onBack: () => void;
 }
 
-type Tab = 'rdo' | 'photos' | 'presence' | 'purchases' | 'location' | 'contracts';
+type Tab = 'rdo' | 'purchases' | 'presence' | 'photos' | 'contracts' | 'location';
 
 const ProjectDetail: React.FC<ProjectDetailProps> = ({ project, onUpdate, onBack }) => {
   const [activeTab, setActiveTab] = useState<Tab>('rdo');
 
-  const updateTabContent = (key: keyof Project, data: any) => {
+  const handleSubUpdate = (key: keyof Project, data: any) => {
     onUpdate({ ...project, [key]: data });
   };
 
   return (
     <div className="animate-in slide-in-from-right duration-300 max-w-6xl mx-auto">
-      {/* Cabeçalho do Projeto */}
+      {/* Header Obra */}
       <div className="bg-white rounded-3xl p-8 border border-slate-200 mb-8 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
         <div>
           <button onClick={onBack} className="text-[10px] font-black text-slate-400 flex items-center gap-1 uppercase tracking-widest mb-4 hover:text-slate-900 transition-colors">
@@ -37,12 +37,12 @@ const ProjectDetail: React.FC<ProjectDetailProps> = ({ project, onUpdate, onBack
           </p>
         </div>
         <div className="bg-slate-100 p-4 rounded-2xl border border-slate-200 text-right">
-          <span className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Status da Obra</span>
+          <span className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Status Atual</span>
           <p className="text-xl font-black text-slate-900 uppercase tracking-tighter">{project.status}</p>
         </div>
       </div>
 
-      {/* Menu de Navegação */}
+      {/* Tabs */}
       <div className="flex overflow-x-auto gap-2 mb-8 no-scrollbar pb-2">
         <TabButton label="DIÁRIO RDO" active={activeTab === 'rdo'} onClick={() => setActiveTab('rdo')} icon={<FileText size={16}/>} />
         <TabButton label="COMPRAS" active={activeTab === 'purchases'} onClick={() => setActiveTab('purchases')} icon={<ShoppingCart size={16}/>} />
@@ -52,13 +52,13 @@ const ProjectDetail: React.FC<ProjectDetailProps> = ({ project, onUpdate, onBack
         <TabButton label="MAPA" active={activeTab === 'location'} onClick={() => setActiveTab('location')} icon={<MapPin size={16}/>} />
       </div>
 
-      {/* Área de Conteúdo */}
+      {/* Module Container */}
       <div className="bg-white rounded-3xl border border-slate-200 shadow-xl overflow-hidden min-h-[500px]">
-        {activeTab === 'rdo' && <RDOModule project={project} onUpdate={updateTabContent} />}
-        {activeTab === 'purchases' && <PurchasesModule project={project} onUpdate={updateTabContent} />}
-        {activeTab === 'presence' && <PresenceModule project={project} onUpdate={updateTabContent} />}
-        {activeTab === 'photos' && <PhotosModule project={project} onUpdate={updateTabContent} />}
-        {activeTab === 'contracts' && <ContractsModule project={project} onUpdate={updateTabContent} />}
+        {activeTab === 'rdo' && <RDOModule project={project} onUpdate={handleSubUpdate} />}
+        {activeTab === 'purchases' && <PurchasesModule project={project} onUpdate={handleSubUpdate} />}
+        {activeTab === 'presence' && <PresenceModule project={project} onUpdate={handleSubUpdate} />}
+        {activeTab === 'photos' && <PhotosModule project={project} onUpdate={handleSubUpdate} />}
+        {activeTab === 'contracts' && <ContractsModule project={project} onUpdate={handleSubUpdate} />}
         {activeTab === 'location' && <LocationModule project={project} />}
       </div>
     </div>
@@ -74,11 +74,17 @@ const TabButton: React.FC<{label: string, active: boolean, onClick: () => void, 
   </button>
 );
 
-// --- MODULOS ---
+// --- COMPONENTES DE MÓDULO ---
 
 const PurchasesModule: React.FC<{project: Project, onUpdate: (key: keyof Project, data: any) => void}> = ({ project, onUpdate }) => {
   const [isAdding, setIsAdding] = useState(false);
-  const [form, setForm] = useState<Partial<MaterialPurchase>>({ date: new Date().toISOString().split('T')[0], item: '', quantity: '', supplier: '', value: 0 });
+  const [form, setForm] = useState<Partial<MaterialPurchase>>({ 
+    date: new Date().toISOString().split('T')[0], 
+    item: '', 
+    quantity: '', 
+    supplier: '', 
+    value: 0 
+  });
 
   const handleSave = () => {
     if (!form.item || !form.value) return;
@@ -120,15 +126,15 @@ const PurchasesModule: React.FC<{project: Project, onUpdate: (key: keyof Project
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="space-y-1">
               <label className="text-[10px] uppercase text-amber-700 tracking-widest">Material</label>
-              <input type="text" value={form.item} onChange={e => setForm({...form, item: e.target.value})} className="w-full bg-white border-none rounded-xl px-4 py-3 text-sm font-black uppercase" placeholder="EX: CIMENTO" />
+              <input type="text" value={form.item} onChange={e => setForm({...form, item: e.target.value})} className="w-full bg-white border-none rounded-xl px-4 py-3 text-sm font-black uppercase outline-none focus:ring-2 focus:ring-amber-500" placeholder="EX: CIMENTO" />
             </div>
             <div className="space-y-1">
               <label className="text-[10px] uppercase text-amber-700 tracking-widest">Qtd</label>
-              <input type="text" value={form.quantity} onChange={e => setForm({...form, quantity: e.target.value})} className="w-full bg-white border-none rounded-xl px-4 py-3 text-sm font-black uppercase" placeholder="EX: 100 SACOS" />
+              <input type="text" value={form.quantity} onChange={e => setForm({...form, quantity: e.target.value})} className="w-full bg-white border-none rounded-xl px-4 py-3 text-sm font-black uppercase outline-none focus:ring-2 focus:ring-amber-500" placeholder="EX: 100 SACOS" />
             </div>
             <div className="space-y-1">
               <label className="text-[10px] uppercase text-amber-700 tracking-widest">Valor R$</label>
-              <input type="number" value={form.value} onChange={e => setForm({...form, value: Number(e.target.value)})} className="w-full bg-white border-none rounded-xl px-4 py-3 text-sm font-black" />
+              <input type="number" value={form.value} onChange={e => setForm({...form, value: Number(e.target.value)})} className="w-full bg-white border-none rounded-xl px-4 py-3 text-sm font-black outline-none focus:ring-2 focus:ring-amber-500" />
             </div>
           </div>
           <div className="flex justify-end gap-3 pt-4">
@@ -143,7 +149,7 @@ const PurchasesModule: React.FC<{project: Project, onUpdate: (key: keyof Project
           <thead className="bg-slate-50 border-b border-slate-100">
             <tr className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
               <th className="px-6 py-4">Data</th>
-              <th className="px-6 py-4">Item / Qtd</th>
+              <th className="px-6 py-4">Item / Fornecedor</th>
               <th className="px-6 py-4 text-right">Valor</th>
               <th className="px-6 py-4 text-center">Ação</th>
             </tr>
@@ -157,7 +163,7 @@ const PurchasesModule: React.FC<{project: Project, onUpdate: (key: keyof Project
                   <td className="px-6 py-4 text-[10px] text-slate-500">{new Date(p.date + 'T12:00:00Z').toLocaleDateString('pt-BR')}</td>
                   <td className="px-6 py-4">
                     <p className="text-sm text-slate-900 uppercase tracking-tight">{p.item}</p>
-                    <p className="text-[10px] text-slate-400 uppercase">{p.quantity}</p>
+                    <p className="text-[10px] text-slate-400 uppercase font-black">{p.quantity} | {p.supplier || 'N/A'}</p>
                   </td>
                   <td className="px-6 py-4 text-right text-sm text-slate-900">
                     {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(p.value)}
@@ -165,8 +171,8 @@ const PurchasesModule: React.FC<{project: Project, onUpdate: (key: keyof Project
                   <td className="px-6 py-4 text-center">
                     <button 
                       onClick={() => handleDelete(p.id)}
-                      className="p-3 text-slate-300 hover:text-red-500 bg-slate-50 hover:bg-red-50 rounded-xl transition-all active:scale-90"
-                      title="Excluir Lançamento Errado"
+                      className="p-3 text-slate-300 hover:text-red-600 bg-slate-50 hover:bg-red-50 rounded-xl transition-all active:scale-90"
+                      title="Excluir Lançamento"
                     >
                       <Trash2 size={18} />
                     </button>
@@ -193,7 +199,7 @@ const RDOModule: React.FC<{project: Project, onUpdate: (key: keyof Project, data
       weather: form.weather || 'ENSOLARADO',
       activities: form.activities.toUpperCase(),
       observations: '',
-      author: 'ENGENHEIRO HLH'
+      author: 'ENGENHEIRO RESPONSÁVEL'
     };
     onUpdate('reports', [rdo, ...project.reports]);
     setIsAdding(false);
@@ -214,11 +220,11 @@ const RDOModule: React.FC<{project: Project, onUpdate: (key: keyof Project, data
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1">
               <label className="text-[10px] uppercase text-slate-500 tracking-widest">Data</label>
-              <input type="date" value={form.date} onChange={e => setForm({...form, date: e.target.value})} className="w-full bg-white border-none rounded-xl px-4 py-3 font-black" />
+              <input type="date" value={form.date} onChange={e => setForm({...form, date: e.target.value})} className="w-full bg-white border-none rounded-xl px-4 py-3 font-black outline-none" />
             </div>
             <div className="space-y-1">
               <label className="text-[10px] uppercase text-slate-500 tracking-widest">Clima</label>
-              <select value={form.weather} onChange={e => setForm({...form, weather: e.target.value})} className="w-full bg-white border-none rounded-xl px-4 py-3 font-black">
+              <select value={form.weather} onChange={e => setForm({...form, weather: e.target.value})} className="w-full bg-white border-none rounded-xl px-4 py-3 font-black outline-none">
                 <option>ENSOLARADO</option>
                 <option>CHUVOSO</option>
                 <option>NUBLADO</option>
@@ -226,8 +232,8 @@ const RDOModule: React.FC<{project: Project, onUpdate: (key: keyof Project, data
             </div>
           </div>
           <div className="space-y-1">
-            <label className="text-[10px] uppercase text-slate-500 tracking-widest">Atividades do Dia</label>
-            <textarea rows={4} value={form.activities} onChange={e => setForm({...form, activities: e.target.value})} className="w-full bg-white border-none rounded-xl px-4 py-3 font-black uppercase" placeholder="DESCREVA O QUE FOI FEITO..."></textarea>
+            <label className="text-[10px] uppercase text-slate-500 tracking-widest">Relatório Técnico / Atividades</label>
+            <textarea rows={4} value={form.activities} onChange={e => setForm({...form, activities: e.target.value})} className="w-full bg-white border-none rounded-xl px-4 py-3 font-black uppercase outline-none" placeholder="O QUE FOI EXECUTADO HOJE?"></textarea>
           </div>
           <div className="flex justify-end gap-3">
             <button onClick={() => setIsAdding(false)} className="text-[10px] font-black uppercase tracking-widest text-slate-400">Sair</button>
@@ -251,6 +257,9 @@ const RDOModule: React.FC<{project: Project, onUpdate: (key: keyof Project, data
                 <span className="text-[10px] font-black text-slate-300 uppercase">ID #{r.id.slice(-4)}</span>
               </div>
               <p className="text-sm font-black text-slate-700 uppercase leading-relaxed tracking-tight">{r.activities}</p>
+              <div className="mt-4 flex items-center gap-2 text-[10px] text-slate-400 font-black uppercase">
+                 <User size={12}/> {r.author}
+              </div>
             </div>
           ))
         )}
@@ -259,15 +268,107 @@ const RDOModule: React.FC<{project: Project, onUpdate: (key: keyof Project, data
   );
 };
 
-// Módulos simplificados para manter foco na exclusão solicitada
-// Fixed: Added props to match component usage in ProjectDetail
-const PresenceModule: React.FC<{project: Project, onUpdate: (key: keyof Project, data: any) => void}> = () => <div className="p-20 text-center font-black uppercase text-slate-300">Controle de Presença Disponível no App Mobile.</div>;
-const PhotosModule: React.FC<{project: Project, onUpdate: (key: keyof Project, data: any) => void}> = () => <div className="p-20 text-center font-black uppercase text-slate-300">Galeria de Fotos HLH.</div>;
-const ContractsModule: React.FC<{project: Project, onUpdate: (key: keyof Project, data: any) => void}> = () => <div className="p-20 text-center font-black uppercase text-slate-300">Repositório de Contratos Jurídico.</div>;
+const PresenceModule: React.FC<{project: Project, onUpdate: (key: keyof Project, data: any) => void}> = ({ project, onUpdate }) => {
+  const [empName, setEmpName] = useState('');
+  
+  const addEmployee = () => {
+    if(!empName) return;
+    const newEmp: Employee = { id: Date.now().toString(), name: empName.toUpperCase(), role: 'EQUIPE', active: true };
+    onUpdate('employees', [...project.employees, newEmp]);
+    setEmpName('');
+  };
 
-const LocationModule = ({ project }: { project: Project }) => (
+  return (
+    <div className="p-8">
+      <div className="flex justify-between items-center mb-8">
+        <h3 className="text-2xl font-black text-slate-900 uppercase tracking-tighter">Controle de Equipe</h3>
+        <div className="flex gap-2">
+          <input 
+            type="text" 
+            value={empName} 
+            onChange={e => setEmpName(e.target.value)}
+            className="bg-slate-100 border-none rounded-xl px-4 py-2 text-sm font-black uppercase outline-none" 
+            placeholder="Nome Funcionário"
+          />
+          <button onClick={addEmployee} className="bg-slate-900 text-white p-2 rounded-xl active:scale-95"><Plus size={20}/></button>
+        </div>
+      </div>
+      
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 font-black">
+        {project.employees.length === 0 ? (
+          <div className="col-span-full text-center py-20 text-slate-300 uppercase tracking-widest text-xs">Nenhum funcionário cadastrado.</div>
+        ) : (
+          project.employees.map(emp => (
+            <div key={emp.id} className="p-4 bg-slate-50 rounded-2xl flex items-center justify-between border border-slate-100">
+               <div>
+                 <p className="text-sm text-slate-900 uppercase">{emp.name}</p>
+                 <p className="text-[10px] text-slate-400 uppercase tracking-widest">{emp.role}</p>
+               </div>
+               <div className="w-3 h-3 rounded-full bg-green-500"></div>
+            </div>
+          ))
+        )}
+      </div>
+    </div>
+  );
+};
+
+const PhotosModule: React.FC<{project: Project, onUpdate: (key: keyof Project, data: any) => void}> = ({ project, onUpdate }) => {
+  const handleUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const newPhoto: ProjectPhoto = {
+          id: Date.now().toString(),
+          url: reader.result as string,
+          caption: 'Registro de Campo',
+          date: new Date().toLocaleDateString('pt-BR')
+        };
+        onUpdate('photos', [newPhoto, ...project.photos]);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  return (
+    <div className="p-8">
+      <div className="flex justify-between items-center mb-8">
+        <h3 className="text-2xl font-black text-slate-900 uppercase tracking-tighter">Galeria de Campo</h3>
+        <label className="bg-amber-500 text-slate-900 font-black px-6 py-3 rounded-xl flex items-center gap-2 uppercase text-[10px] tracking-widest shadow-xl cursor-pointer">
+          <Camera size={18} /> UPLOAD FOTO
+          <input type="file" accept="image/*" className="hidden" onChange={handleUpload} />
+        </label>
+      </div>
+      
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        {project.photos.map(photo => (
+          <div key={photo.id} className="aspect-square bg-slate-100 rounded-2xl overflow-hidden group relative">
+            <img src={photo.url} className="w-full h-full object-cover transition-transform group-hover:scale-110" alt="Obra" />
+            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-4">
+               <p className="text-white text-[10px] font-black uppercase tracking-widest">{photo.date}</p>
+            </div>
+          </div>
+        ))}
+        {project.photos.length === 0 && <div className="col-span-full text-center py-20 text-slate-300 uppercase tracking-widest text-xs">Sem fotos registradas.</div>}
+      </div>
+    </div>
+  );
+};
+
+const ContractsModule: React.FC<{project: Project, onUpdate: (key: keyof Project, data: any) => void}> = ({ project }) => (
+  <div className="p-20 text-center font-black uppercase text-slate-300">Repositório de Contratos HLH (Módulo Jurídico).</div>
+);
+
+const LocationModule: React.FC<{project: Project}> = ({ project }) => (
   <div className="h-[500px]">
-    <iframe width="100%" height="100%" frameBorder="0" src={`https://www.google.com/maps?q=${encodeURIComponent(project.location)}&output=embed`} title="Localização da Obra" />
+    <iframe 
+      width="100%" 
+      height="100%" 
+      frameBorder="0" 
+      src={`https://www.google.com/maps?q=${encodeURIComponent(project.location)}&output=embed`} 
+      title="Mapa da Obra"
+    />
   </div>
 );
 
