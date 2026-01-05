@@ -1,22 +1,10 @@
 
 import React, { useState, useEffect } from 'react';
 import { 
-  Plus, 
-  Search, 
-  LayoutDashboard, 
-  HardHat, 
-  Camera, 
-  FileText, 
-  Users, 
-  ShoppingCart, 
-  ArrowLeft,
-  Settings,
-  Bell,
-  CheckCircle2,
-  Clock,
-  Sparkles
+  Plus, Search, LayoutDashboard, HardHat, 
+  ArrowLeft, Settings, Bell
 } from 'lucide-react';
-import { Project, ProjectStatus } from './types';
+import { Project } from './types';
 import Dashboard from './components/Dashboard';
 import ProjectDetail from './components/ProjectDetail';
 import NewProjectModal from './components/NewProjectModal';
@@ -34,24 +22,19 @@ const App: React.FC = () => {
   const [isNewProjectModalOpen, setIsNewProjectModalOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
 
-  // Carregar dados iniciais
   useEffect(() => {
-    const saved = localStorage.getItem('hlh_projects');
+    const saved = localStorage.getItem('hlh_projects_v2');
     if (saved) {
-      try {
-        setProjects(JSON.parse(saved));
-      } catch (e) {
-        console.error("Erro ao carregar dados do localStorage", e);
-        setProjects(INITIAL_PROJECTS);
-      }
+      setProjects(JSON.parse(saved));
     } else {
       setProjects(INITIAL_PROJECTS);
     }
   }, []);
 
-  // Salvar sempre que houver mudança nos projetos
   useEffect(() => {
-    localStorage.setItem('hlh_projects', JSON.stringify(projects));
+    if (projects.length > 0) {
+      localStorage.setItem('hlh_projects_v2', JSON.stringify(projects));
+    }
   }, [projects]);
 
   const addProject = (name: string, location: string) => {
@@ -81,95 +64,68 @@ const App: React.FC = () => {
   const filteredProjects = projects.filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase()));
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col md:flex-row">
-      {/* Sidebar - Desktop */}
-      <aside className="hidden md:flex flex-col w-64 bg-slate-900 text-white p-6 sticky top-0 h-screen">
-        <div className="mb-10 flex items-center gap-2">
-          <div className="bg-amber-500 p-2 rounded-lg">
-            <HardHat className="text-slate-900" size={24} />
+    <div className="min-h-screen bg-slate-100 flex flex-col md:flex-row">
+      {/* Sidebar */}
+      <aside className="hidden md:flex flex-col w-64 bg-slate-900 text-white p-6 sticky top-0 h-screen shadow-2xl">
+        <div className="mb-10 flex items-center gap-3">
+          <div className="bg-amber-500 p-2 rounded-xl">
+            <HardHat className="text-slate-900" size={28} />
           </div>
           <div>
-            <h1 className="text-xl font-bold tracking-tight">HLH</h1>
-            <p className="text-[10px] text-slate-400 uppercase tracking-widest font-black">Engenharia</p>
+            <h1 className="text-2xl font-black tracking-tighter">HLH</h1>
+            <p className="text-[10px] text-amber-500 uppercase tracking-[0.2em] font-black">Engenharia</p>
           </div>
         </div>
 
-        <nav className="space-y-2 flex-1">
+        <nav className="space-y-2 flex-1 font-black">
           <button 
             onClick={() => setSelectedProjectId(null)}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${!selectedProjectId ? 'bg-amber-500 text-slate-900 font-bold' : 'hover:bg-slate-800'}`}
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all uppercase text-xs tracking-widest ${!selectedProjectId ? 'bg-amber-500 text-slate-900' : 'hover:bg-slate-800 text-slate-400'}`}
           >
             <LayoutDashboard size={20} />
-            Dashboard
+            DASHBOARD
           </button>
-          <div className="pt-4 pb-2">
-            <p className="text-xs text-slate-500 font-black uppercase px-4 mb-2 tracking-widest">Obras</p>
-            {projects.map(p => (
-              <button
-                key={p.id}
-                onClick={() => setSelectedProjectId(p.id)}
-                className={`w-full flex items-center gap-3 px-4 py-2 rounded-lg text-sm transition-colors ${selectedProjectId === p.id ? 'bg-slate-700 text-amber-500 font-bold' : 'hover:bg-slate-800 text-slate-300'}`}
-              >
-                <div className={`w-2 h-2 rounded-full ${p.status === 'Em andamento' ? 'bg-green-500' : p.status === 'Concluída' ? 'bg-blue-500' : 'bg-amber-500'}`} />
-                {p.name}
-              </button>
-            ))}
+          
+          <div className="pt-6 pb-2">
+            <p className="text-[10px] text-slate-600 font-black uppercase px-4 mb-4 tracking-[0.3em]">Obras em Foco</p>
+            <div className="space-y-1">
+              {projects.map(p => (
+                <button
+                  key={p.id}
+                  onClick={() => setSelectedProjectId(p.id)}
+                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-[11px] transition-all uppercase tracking-widest border border-transparent ${selectedProjectId === p.id ? 'bg-slate-800 text-amber-500 border-slate-700' : 'hover:bg-slate-800/50 text-slate-500'}`}
+                >
+                  <span className={`w-2 h-2 rounded-full ${p.status === 'Em andamento' ? 'bg-green-500' : 'bg-amber-500'}`} />
+                  {p.name}
+                </button>
+              ))}
+            </div>
           </div>
         </nav>
-
-        <div className="mt-auto pt-6 border-t border-slate-800">
-          <button className="flex items-center gap-3 px-4 py-2 text-slate-400 hover:text-white transition-colors w-full font-bold">
-            <Settings size={20} />
-            Configurações
-          </button>
-        </div>
       </aside>
 
       {/* Main Content */}
       <main className="flex-1 flex flex-col min-w-0">
-        <header className="bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between sticky top-0 z-10">
+        <header className="bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between sticky top-0 z-50">
           <div className="flex items-center gap-4">
-            {selectedProjectId && (
-              <button 
-                onClick={() => setSelectedProjectId(null)}
-                className="md:hidden p-2 hover:bg-slate-100 rounded-full"
-              >
-                <ArrowLeft size={20} />
-              </button>
-            )}
-            <h2 className="text-lg font-black text-slate-900 truncate uppercase tracking-tight">
-              {selectedProjectId ? selectedProject?.name : 'Dashboard Geral'}
+            <h2 className="text-lg font-black text-slate-900 uppercase tracking-tighter">
+              {selectedProjectId ? selectedProject?.name : 'HLH - Painel Geral'}
             </h2>
           </div>
 
-          <div className="flex items-center gap-4">
-            <div className="hidden sm:flex relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-              <input 
-                type="text" 
-                placeholder="Buscar obra..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 pr-4 py-2 bg-slate-100 border-none rounded-full text-sm font-bold focus:ring-2 focus:ring-amber-500 outline-none w-48 lg:w-64"
-              />
-            </div>
-            <button className="p-2 text-slate-500 hover:bg-slate-100 rounded-full relative">
-              <Bell size={20} />
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
-            </button>
+          <div className="flex items-center gap-3">
             {!selectedProjectId && (
               <button 
                 onClick={() => setIsNewProjectModalOpen(true)}
-                className="bg-amber-500 hover:bg-amber-600 text-slate-900 font-black px-4 py-2 rounded-lg flex items-center gap-2 transition-transform active:scale-95 shadow-lg shadow-amber-500/20"
+                className="bg-slate-900 text-white font-black px-6 py-2.5 rounded-xl flex items-center gap-2 transition-all active:scale-95 shadow-xl uppercase text-xs tracking-widest"
               >
-                <Plus size={20} />
-                <span className="hidden sm:inline">Nova Obra</span>
+                <Plus size={18} /> NOVA OBRA
               </button>
             )}
           </div>
         </header>
 
-        <div className="flex-1 overflow-y-auto p-4 md:p-8">
+        <div className="flex-1 p-4 md:p-8">
           {selectedProjectId && selectedProject ? (
             <ProjectDetail 
               project={selectedProject} 
@@ -177,35 +133,10 @@ const App: React.FC = () => {
               onBack={() => setSelectedProjectId(null)} 
             />
           ) : (
-            <Dashboard 
-              projects={filteredProjects} 
-              onSelect={setSelectedProjectId} 
-            />
+            <Dashboard projects={filteredProjects} onSelect={setSelectedProjectId} />
           )}
         </div>
       </main>
-
-      {/* Mobile Navigation */}
-      <nav className="md:hidden bg-white border-t border-slate-200 grid grid-cols-3 p-2 sticky bottom-0 z-20">
-        <button 
-          onClick={() => setSelectedProjectId(null)}
-          className={`flex flex-col items-center p-2 rounded-lg ${!selectedProjectId ? 'text-amber-500' : 'text-slate-400'}`}
-        >
-          <LayoutDashboard size={24} />
-          <span className="text-[10px] mt-1 font-black uppercase">Início</span>
-        </button>
-        <button 
-          onClick={() => setIsNewProjectModalOpen(true)}
-          className="flex flex-col items-center p-2 text-slate-400"
-        >
-          <Plus size={24} />
-          <span className="text-[10px] mt-1 font-black uppercase">Adicionar</span>
-        </button>
-        <button className="flex flex-col items-center p-2 text-slate-400">
-          <Settings size={24} />
-          <span className="text-[10px] mt-1 font-black uppercase">Ajustes</span>
-        </button>
-      </nav>
 
       <NewProjectModal 
         isOpen={isNewProjectModalOpen} 
