@@ -43,8 +43,8 @@ const Dashboard: React.FC<DashboardProps> = ({ projects, onSelect, onDeleteProje
       {/* Mini Stats Grid */}
       <div className="grid grid-cols-3 gap-3">
         <StatItem label="Ativas" value={stats.active} color="green" active={statusFilter === 'Em andamento'} onClick={() => setStatusFilter('Em andamento')} />
-        <StatItem label="Plano" value={stats.planning} color="amber" active={statusFilter === 'Planejamento'} onClick={() => setStatusFilter('Planejamento')} />
-        <StatItem label="Fim" value={stats.completed} color="blue" active={statusFilter === 'Concluída'} onClick={() => setStatusFilter('Concluída')} />
+        <StatItem label="Planejamento" value={stats.planning} color="amber" active={statusFilter === 'Planejamento'} onClick={() => setStatusFilter('Planejamento')} />
+        <StatItem label="Concluídas" value={stats.completed} color="blue" active={statusFilter === 'Concluída'} onClick={() => setStatusFilter('Concluída')} />
       </div>
 
       {/* Toolbar / Search */}

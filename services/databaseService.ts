@@ -21,7 +21,7 @@ export const initSupabase = () => {
       url = config.url || '';
       key = config.key || '';
     } catch (e) {
-      console.error("Erro ao ler config", e);
+      console.error("Erro ao ler config local", e);
     }
   }
 
@@ -33,7 +33,6 @@ export const initSupabase = () => {
   return false;
 };
 
-// Auto-inicializar
 initSupabase();
 
 export const DatabaseService = {
@@ -48,15 +47,17 @@ export const DatabaseService = {
       const { error } = await supabase.from('projects').select('id').limit(1);
       
       if (error) {
-        if (error.code === '42P01') {
-          return { success: false, message: "Tabelas não criadas. Veja 'SQL SETUP'.", code: 'MISSING_TABLES' };
-        }
-        return { success: false, message: "Erro: " + error.message, code: error.code };
+        console.error("Erro Supabase:", error);
+        // Códigos comuns do Postgres/Supabase
+        if (error.code === '42P01') return { success: false, message: "Tabelas não criadas. Vá em SQL Setup.", code: '42P01' };
+        if (error.code === '42501') return { success: false, message: "Permissão Negada (RLS). Rode o SQL!", code: '42501' };
+        if (error.code === 'PGRST116') return { success: true, message: "Conectado (Vazio)." };
+        return { success: false, message: `Erro ${error.code}: ${error.message}`, code: error.code };
       }
       
-      return { success: true, message: "Conectado à nuvem Supabase!" };
+      return { success: true, message: "Conectado com Sucesso!" };
     } catch (e: any) {
-      return { success: false, message: "Erro de conexão rede.", code: 'FETCH_ERROR' };
+      return { success: false, message: "Falha de rede ou URL inválida.", code: 'FETCH_ERROR' };
     }
   },
 
@@ -77,8 +78,31 @@ export const DatabaseService = {
 
   async saveProjects(projects: Project[]): Promise<void> {
     if (!supabase) return;
-    const { error } = await supabase.from('projects').upsert(projects, { onConflict: 'id' });
-    if (error) throw error;
+    
+    // Limpamos o objeto para o formato que o Postgres aceita
+    const formatted = projects.map(p => ({
+      id: String(p.id),
+      name: p.name || 'SEM NOME',
+      status: p.status || 'Planejamento',
+      location: p.location || '',
+      progress: Number(p.progress) || 0,
+      mainPhoto: p.mainPhoto || null,
+      employees: p.employees || [],
+      reports: p.reports || [],
+      purchases: p.purchases || [],
+      photos: p.photos || [],
+      presence: p.presence || [],
+      contracts: p.contracts || [],
+      documents: p.documents || []
+    }));
+
+    if (formatted.length === 0) return;
+
+    const { error } = await supabase.from('projects').upsert(formatted, { onConflict: 'id' });
+    if (error) {
+      console.error("Erro ao salvar projetos:", error);
+      throw error;
+    }
   },
 
   async getEmployees(): Promise<Employee[]> {
@@ -93,7 +117,22 @@ export const DatabaseService = {
 
   async saveEmployees(employees: Employee[]): Promise<void> {
     if (!supabase) return;
-    const { error } = await supabase.from('employees').upsert(employees, { onConflict: 'id' });
-    if (error) throw error;
+    
+    const formatted = employees.map(e => ({
+      id: String(e.id),
+      name: e.name || '',
+      role: e.role || '',
+      active: !!e.active,
+      dailyRate: Number(e.dailyRate) || 0,
+      projectId: e.projectId ? String(e.projectId) : null
+    }));
+
+    if (formatted.length === 0) return;
+
+    const { error } = await supabase.from('employees').upsert(formatted, { onConflict: 'id' });
+    if (error) {
+      console.error("Erro ao salvar colaboradores:", error);
+      throw error;
+    }
   }
 };

@@ -21,7 +21,7 @@ export const initSupabase = () => {
       url = config.url || '';
       key = config.key || '';
     } catch (e) {
-      console.error("Erro ao ler config", e);
+      console.error("Erro ao ler config local", e);
     }
   }
 
@@ -47,13 +47,17 @@ export const DatabaseService = {
       const { error } = await supabase.from('projects').select('id').limit(1);
       
       if (error) {
+        console.error("Erro no teste de conexão Supabase:", error);
         if (error.code === '42P01') {
-          return { success: false, message: "Tabelas não encontradas no Supabase.", code: 'MISSING_TABLES' };
+          return { success: false, message: "Tabelas não encontradas. Rode o SQL.", code: 'MISSING_TABLES' };
         }
-        return { success: false, message: "Erro de autenticação: " + error.message, code: error.code };
+        if (error.message.includes('permission denied')) {
+          return { success: false, message: "Permissão Negada! Verifique RLS no Supabase.", code: 'PERMISSION_DENIED' };
+        }
+        return { success: false, message: "Erro: " + error.message, code: error.code };
       }
       
-      return { success: true, message: "Conexão estabelecida com sucesso!" };
+      return { success: true, message: "Conectado e com permissão de leitura!" };
     } catch (e: any) {
       return { success: false, message: "Erro de rede ao conectar.", code: 'FETCH_ERROR' };
     }
@@ -70,20 +74,24 @@ export const DatabaseService = {
       return data ? JSON.parse(data) : [];
     }
     const { data, error } = await supabase.from('projects').select('*').order('created_at', { ascending: false });
-    if (error) throw error;
+    if (error) {
+      console.error("Erro ao carregar obras:", error);
+      throw error;
+    }
     return data || [];
   },
 
   async saveProjects(projects: Project[]): Promise<void> {
     if (!supabase) return;
-    // Formatamos os dados para garantir que as chaves batam com as colunas do SQL
+    
+    // Mapeamento explícito para as colunas do SQL (respeitando Case Sensitivity se necessário)
     const formatted = projects.map(p => ({
       id: p.id,
       name: p.name,
       status: p.status,
       location: p.location,
       progress: p.progress,
-      mainPhoto: p.mainPhoto, // O Supabase vai mapear se a coluna foi criada com aspas no SQL
+      mainPhoto: p.mainPhoto,
       employees: p.employees,
       reports: p.reports,
       purchases: p.purchases,
@@ -92,8 +100,13 @@ export const DatabaseService = {
       contracts: p.contracts,
       documents: p.documents
     }));
+
     const { error } = await supabase.from('projects').upsert(formatted, { onConflict: 'id' });
-    if (error) throw error;
+    
+    if (error) {
+      console.error("Erro CRÍTICO ao salvar obras no Supabase:", error);
+      throw error;
+    }
   },
 
   async getEmployees(): Promise<Employee[]> {
@@ -102,13 +115,19 @@ export const DatabaseService = {
       return data ? JSON.parse(data) : [];
     }
     const { data, error } = await supabase.from('employees').select('*');
-    if (error) throw error;
+    if (error) {
+      console.error("Erro ao carregar colaboradores:", error);
+      throw error;
+    }
     return data || [];
   },
 
   async saveEmployees(employees: Employee[]): Promise<void> {
     if (!supabase) return;
     const { error } = await supabase.from('employees').upsert(employees, { onConflict: 'id' });
-    if (error) throw error;
+    if (error) {
+      console.error("Erro CRÍTICO ao salvar colaboradores no Supabase:", error);
+      throw error;
+    }
   }
 };
